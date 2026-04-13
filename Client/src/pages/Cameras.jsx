@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Camera, Plus, Pencil, Trash2, Play, Square, Wifi, WifiOff } from 'lucide-react';
-import { camerasApi, sectorsApi } from '../api/api';
+import { camerasApi, setoresApi } from '../api/api';
 import CameraPlayer from '../components/CameraPlayer';
 import LoadingSpinner from '../components/LoadingSpinner';
-import '/styles/Cameras.css';
+import '../styles/Cameras.css';
 
 const cameraInicial = {
   name: '',
@@ -12,6 +12,13 @@ const cameraInicial = {
   sector_id: '',
   is_active: true,
 };
+
+function extrairErro(error, fallback = 'Operação falhou.') {
+  const detail = error.response?.data?.detail;
+  if (Array.isArray(detail)) return detail.map((e) => e.msg).join(', ');
+  if (typeof detail === 'string') return detail;
+  return fallback;
+}
 
 export default function Cameras() {
   const [cameras, setCameras] = useState([]);
@@ -34,17 +41,15 @@ export default function Cameras() {
   async function carregarDados() {
     setCarregando(true);
     setErro('');
-
     try {
       const [camsRes, sectorsRes] = await Promise.all([
-        camerasApi.list(),
-        sectorsApi.list(),
+        camerasApi.listar(),
+        setoresApi.listar(),
       ]);
-
       setCameras(camsRes.data || []);
       setSectors(sectorsRes.data || []);
     } catch (error) {
-      setErro(error.response?.data?.detail || 'Não foi possível carregar as câmeras.');
+      setErro(extrairErro(error, 'Não foi possível carregar as câmeras.'));
     } finally {
       setCarregando(false);
     }
@@ -89,23 +94,22 @@ export default function Cameras() {
 
     const payload = {
       name: form.name,
-      location: form.location,
-      rtsp_url: form.rtsp_url,
+      location: form.location || null,
+      rtsp_url: form.rtsp_url || null,
       sector_id: form.sector_id ? Number(form.sector_id) : null,
       is_active: form.is_active,
     };
 
     try {
       if (cameraEditando) {
-        await camerasApi.update(cameraEditando.id, payload);
+        await camerasApi.editar(cameraEditando.id, payload);
       } else {
-        await camerasApi.create(payload);
+        await camerasApi.criar(payload);
       }
-
       fecharModal();
       await carregarDados();
     } catch (error) {
-      setErro(error.response?.data?.detail || 'Não foi possível salvar a câmera.');
+      setErro(extrairErro(error, 'Não foi possível salvar a câmera.'));
     } finally {
       setSalvando(false);
     }
@@ -114,44 +118,40 @@ export default function Cameras() {
   async function excluirCamera(cameraId) {
     const confirmou = window.confirm('Tem certeza que deseja excluir esta câmera?');
     if (!confirmou) return;
-
     try {
-      await camerasApi.remove(cameraId);
+      await camerasApi.excluir(cameraId);
       await carregarDados();
     } catch (error) {
-      setErro(error.response?.data?.detail || 'Não foi possível excluir a câmera.');
+      setErro(extrairErro(error, 'Não foi possível excluir a câmera.'));
     }
   }
 
   async function iniciarDeteccao(cameraId) {
     try {
-      await camerasApi.startDetection(cameraId);
+      await camerasApi.iniciarDeteccao(cameraId);
       await carregarDados();
     } catch (error) {
-      setErro(error.response?.data?.detail || 'Não foi possível iniciar a detecção.');
+      setErro(extrairErro(error, 'Não foi possível iniciar a detecção.'));
     }
   }
 
   async function pararDeteccao(cameraId) {
     try {
-      await camerasApi.stopDetection(cameraId);
+      await camerasApi.pararDeteccao(cameraId);
       await carregarDados();
     } catch (error) {
-      setErro(error.response?.data?.detail || 'Não foi possível parar a detecção.');
+      setErro(extrairErro(error, 'Não foi possível parar a detecção.'));
     }
   }
 
   const camerasFiltradas = useMemo(() => {
     return cameras.filter((camera) => {
       const texto = busca.toLowerCase();
-
       const combinaBusca =
         camera.name?.toLowerCase().includes(texto) ||
         camera.location?.toLowerCase().includes(texto) ||
         camera.sector?.name?.toLowerCase().includes(texto);
-
       const combinaAtiva = !somenteAtivas || camera.is_active;
-
       return combinaBusca && combinaAtiva;
     });
   }, [cameras, busca, somenteAtivas]);
@@ -173,7 +173,6 @@ export default function Cameras() {
             Gerencie as câmeras, visualize o stream HLS e controle a detecção.
           </p>
         </div>
-
         <button className="btn btn-primary" onClick={abrirNovaCamera}>
           <Plus size={16} />
           Nova câmera
@@ -200,7 +199,6 @@ export default function Cameras() {
                 onChange={(e) => setBusca(e.target.value)}
               />
             </div>
-
             <label className="cameras-checkbox">
               <input
                 type="checkbox"
@@ -241,7 +239,6 @@ export default function Cameras() {
                       <h3 className="camera-card-title">{camera.name}</h3>
                       <p className="camera-card-location">{camera.location || 'Sem localização'}</p>
                     </div>
-
                     <div className={online ? 'badge badge-ok' : 'badge badge-gray'}>
                       {online ? (
                         <>
@@ -262,7 +259,6 @@ export default function Cameras() {
                       <span className="camera-meta-label">Setor</span>
                       <span className="camera-meta-value">{camera.sector?.name || 'Não definido'}</span>
                     </div>
-
                     <div className="camera-meta-item">
                       <span className="camera-meta-label">RTSP</span>
                       <span className="camera-meta-value camera-rtsp">
@@ -289,7 +285,6 @@ export default function Cameras() {
                         Iniciar detecção
                       </button>
                     )}
-
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => abrirEdicao(camera)}
@@ -297,7 +292,6 @@ export default function Cameras() {
                       <Pencil size={14} />
                       Editar
                     </button>
-
                     <button
                       className="btn btn-danger btn-sm"
                       onClick={() => excluirCamera(camera.id)}

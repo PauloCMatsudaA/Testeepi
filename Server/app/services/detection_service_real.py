@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 import os
 import asyncio
 import logging
@@ -10,6 +11,13 @@ os.makedirs(HLS_DIR, exist_ok=True)
 
 processos_ffmpeg: dict[int, subprocess.Popen] = {}
 
+# Resolve o caminho do ffmpeg automaticamente pelo PATH
+# Se não encontrar, usa o caminho padrão do Chocolatey no Windows
+FFMPEG_BIN = (
+    shutil.which("ffmpeg")
+    or r"C:\ProgramData\chocolatey\bin\ffmpeg.exe"
+)
+
 
 def iniciar_hls(camera_id: int, rtsp_url: str):
     pasta = os.path.join(HLS_DIR, str(camera_id))
@@ -20,7 +28,7 @@ def iniciar_hls(camera_id: int, rtsp_url: str):
         return
 
     cmd = [
-        "ffmpeg",
+        FFMPEG_BIN,          # ← caminho resolvido, não depende do PATH
         "-rtsp_transport", "tcp",
         "-i", rtsp_url,
         "-c:v", "copy",
@@ -30,9 +38,15 @@ def iniciar_hls(camera_id: int, rtsp_url: str):
         "-hls_flags", "delete_segments",
         "-y", m3u8,
     ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    processos_ffmpeg[camera_id] = proc
-    logger.info(f"HLS iniciado para câmera {camera_id}")
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        processos_ffmpeg[camera_id] = proc
+        logger.info(f"HLS iniciado para câmera {camera_id} ({FFMPEG_BIN})")
+    except FileNotFoundError:
+        logger.error(
+            f"FFmpeg não encontrado em '{FFMPEG_BIN}'. "
+            "Instale o FFmpeg e adicione ao PATH ou ajuste FFMPEG_BIN."
+        )
 
 
 def parar_hls(camera_id: int):
@@ -46,7 +60,7 @@ async def start_camera_streams():
     Inicia HLS para câmeras ativas. Roda em background via asyncio.create_task.
     O delay de 2s garante que o banco já foi inicializado antes da query.
     """
-    await asyncio.sleep(2)  # aguarda o banco estar 100% pronto
+    await asyncio.sleep(2)
 
     try:
         from app.core.database import AsyncSessionLocal

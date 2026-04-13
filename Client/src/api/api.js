@@ -77,6 +77,8 @@ export const camerasApi = {
   criar: (dados) => cliente.post("/api/cameras", dados),
   editar: (id, dados) => cliente.patch(`/api/cameras/${id}`, dados),
   excluir: (id) => cliente.delete(`/api/cameras/${id}`),
+  iniciarDeteccao: (id) => cliente.post(`/api/cameras/${id}/start-detection`), // ← novo
+  pararDeteccao: (id) => cliente.post(`/api/cameras/${id}/stop-detection`),    // ← novo
 };
 
 export const setoresApi = {

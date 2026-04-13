@@ -9,7 +9,8 @@ class Camera(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    sector_id = Column(Integer, ForeignKey("sectors.id"), nullable=False)
+    location = Column(String(255), nullable=True)          # ← adicionado
+    sector_id = Column(Integer, ForeignKey("sectors.id"), nullable=True)  # ← nullable
     rtsp_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     last_seen = Column(DateTime, nullable=True)

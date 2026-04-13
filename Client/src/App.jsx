@@ -12,6 +12,7 @@ import Cameras from './pages/Cameras';
 import Setores from './pages/Sectors';
 import Configuracoes from './pages/Settings';
 import PerfilUsuario from './pages/PerfilUsuario';
+import Usuarios from './pages/Usuarios';  
 
 const titulosPagina = {
   '/dashboard':    'Dashboard',
@@ -21,7 +22,9 @@ const titulosPagina = {
   '/cameras':      'Câmeras',
   '/sectors':      'Setores',
   '/settings':     'Configurações',
+  '/users': 'Usuários',
   '/perfil':       'Meu Perfil',
+  
 };
 
 function Protegida({ children }) {
@@ -50,6 +53,7 @@ function Layout() {
             <Route path="/cameras"      element={<Cameras />}         />
             <Route path="/sectors"      element={<Setores />}         />
             <Route path="/settings"     element={<Configuracoes />}   />
+            <Route path="/users"        element={<Usuarios />} /> 
             <Route path="/perfil"       element={<PerfilUsuario />}   />
             <Route path="*"             element={<Navigate to="/dashboard" replace />} />
           </Routes>

@@ -5,7 +5,8 @@ from pydantic import BaseModel
 
 class CameraBase(BaseModel):
     name: str
-    sector_id: int
+    location: Optional[str] = None
+    sector_id: Optional[int] = None
     rtsp_url: Optional[str] = None
     is_active: bool = True
 
@@ -16,6 +17,7 @@ class CameraCreate(CameraBase):
 
 class CameraUpdate(BaseModel):
     name: Optional[str] = None
+    location: Optional[str] = None
     sector_id: Optional[int] = None
     rtsp_url: Optional[str] = None
     is_active: Optional[bool] = None
