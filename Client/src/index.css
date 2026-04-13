@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ── Utilitários semânticos curtos ──────────────────────────────────────────── */
+@layer components {
+
+  /* Layout */
+  .pg          { @apply mx-auto max-w-3xl space-y-6; }
+  .pg-wide     { @apply space-y-4; }
+  .row         { @apply flex items-center; }
+  .row-between { @apply flex items-center justify-between; }
+  .col         { @apply flex flex-col; }
+  .gap         { @apply gap-3; }
+  .gap-sm      { @apply gap-2; }
+  .gap-lg      { @apply gap-4; }
+
+  /* Cards */
+  .card        { @apply rounded-xl border border-slate-100 bg-white shadow-sm; }
+  .card-body   { @apply p-5; }
+  .card-header { @apply row gap-3 border-b border-slate-100 px-5 py-4; }
+  .card-hover  { @apply transition-shadow hover:shadow-md; }
+
+  /* Botões */
+  .btn         { @apply flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors; }
+  .btn-primary { @apply btn bg-brand text-white shadow-sm hover:bg-brand-h; }
+  .btn-ghost   { @apply btn bg-slate-100 text-slate-600 hover:bg-slate-200; }
+  .btn-danger  { @apply btn bg-red-50 text-red-600 hover:bg-red-100; }
+  .btn-icon    { @apply rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors; }
+  .btn-sm      { @apply px-3 py-1.5 text-xs; }
+  .btn-full    { @apply flex flex-1 items-center justify-center; }
+
+  /* Formulários */
+  .field       { @apply space-y-1.5; }
+  .label       { @apply block text-sm font-medium text-slate-700; }
+  .input       { @apply w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20; }
+  .select      { @apply input appearance-none; }
+  .input-icon  { @apply relative; }
+
+  /* Modais */
+  .overlay     { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+  .modal       { @apply w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl; }
+  .modal-sm    { @apply w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl; }
+  .modal-lg    { @apply w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl; }
+  .modal-head  { @apply row-between mb-5; }
+  .modal-title { @apply text-lg font-semibold text-slate-800; }
+  .modal-foot  { @apply flex justify-end gap-2 mt-6; }
+
+  /* Badges / Status */
+  .badge       { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium; }
+  .badge-ok    { @apply badge bg-green-50 text-green-700; }
+  .badge-err   { @apply badge bg-red-50 text-red-700; }
+  .badge-warn  { @apply badge bg-yellow-50 text-yellow-700; }
+  .badge-info  { @apply badge bg-blue-50 text-blue-700; }
+  .badge-gray  { @apply badge bg-slate-100 text-slate-500; }
+  .dot-ok      { @apply h-1.5 w-1.5 rounded-full bg-ok; }
+  .dot-err     { @apply h-1.5 w-1.5 rounded-full bg-err; }
+  .dot-warn    { @apply h-1.5 w-1.5 rounded-full bg-warn; }
+  .dot-gray    { @apply h-1.5 w-1.5 rounded-full bg-slate-400; }
+
+  /* Ícone colorido */
+  .icon-box    { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg; }
+  .icon-box-lg { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl; }
+
+  /* Alertas */
+  .alert       { @apply flex items-start gap-2 rounded-lg border px-4 py-3 text-sm; }
+  .alert-warn  { @apply alert bg-amber-50 border-amber-100 text-amber-700; }
+  .alert-info  { @apply alert bg-blue-50 border-blue-100 text-blue-700; }
+  .alert-ok    { @apply alert bg-green-50 border-green-100 text-green-700; }
+  .alert-err   { @apply alert bg-red-50 border-red-100 text-red-700; }
+
+  /* Tabela */
+  .tbl         { @apply w-full text-left text-sm; }
+  .tbl-th      { @apply whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400; }
+  .tbl-td      { @apply whitespace-nowrap px-4 py-3 text-slate-700; }
+  .tbl-tr      { @apply border-b border-slate-50 transition-colors hover:bg-slate-50/50; }
+
+  /* Seção */
+  .sec-title   { @apply text-sm font-semibold text-slate-700; }
+  .sec-sub     { @apply text-xs text-slate-500; }
+  .divider     { @apply border-t border-slate-100; }
+
+  /* Código / terminal */
+  .code-block  { @apply relative overflow-x-auto rounded-lg bg-dark p-4 text-xs text-slate-300; }
+
+  /* Animações */
+  .fade-in     { animation: fadeIn 0.2s ease-out; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);   }
+  }
+
+  .page-enter  { animation: pageEnter 0.25s ease-out; }
+  @keyframes pageEnter {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0);   }
+  }
+}
