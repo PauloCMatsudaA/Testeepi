@@ -1,5 +1,8 @@
+import asyncio
+import os
 from datetime import datetime
 from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,9 +12,16 @@ from app.core.deps import get_current_user, get_current_manager
 from app.models.user import User
 from app.models.camera import Camera
 from app.schemas.camera import CameraCreate, CameraUpdate, CameraResponse, DetectionControl
-from app.services.detection_service_real import iniciar_hls, parar_hls
+from app.services.detection_service_real import (
+    iniciar_hls,
+    parar_hls,
+    tarefas_deteccao,
+    processar_stream_camera,
+)
 
 router = APIRouter(prefix="/cameras", tags=["Cameras"])
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "best.pt")
 
 
 @router.get("/", response_model=List[CameraResponse])
@@ -34,7 +44,7 @@ async def create_camera(
         name=camera_in.name,
         sector_id=camera_in.sector_id,
         rtsp_url=camera_in.rtsp_url,
-        location=camera_in.location if hasattr(camera_in, 'location') else None,
+        location=camera_in.location if hasattr(camera_in, "location") else None,
         is_active=camera_in.is_active,
     )
     db.add(camera)
@@ -91,15 +101,37 @@ async def start_detection(
     if not camera.rtsp_url:
         raise HTTPException(status_code=400, detail="Câmera sem URL RTSP configurada.")
 
+    # Inicia o stream HLS (player no frontend)
     iniciar_hls(camera_id, camera.rtsp_url)
+
+    # Inicia a detecção YOLOv8 se o modelo existir e não estiver rodando já
+    modelo_existe = os.path.exists(MODEL_PATH)
+    deteccao_ativa = camera_id in tarefas_deteccao and not tarefas_deteccao[camera_id].done()
+
+    if modelo_existe and not deteccao_ativa:
+        sector_id = camera.sector_id or 1
+        task = asyncio.create_task(
+            processar_stream_camera(camera_id, camera.rtsp_url, sector_id)
+        )
+        tarefas_deteccao[camera_id] = task
+        mensagem = f"Stream HLS e detecção YOLOv8 iniciados para câmera {camera_id}."
+    elif not modelo_existe:
+        mensagem = (
+            f"Stream HLS iniciado. "
+            f"Detecção não iniciada: best.pt não encontrado em '{MODEL_PATH}'. "
+            "Coloque o modelo treinado em Server/best.pt e clique novamente."
+        )
+    else:
+        mensagem = f"Stream HLS e detecção já estão ativos para câmera {camera_id}."
 
     camera.last_seen = datetime.utcnow()
     await db.flush()
+    await db.commit()
 
     return DetectionControl(
         camera_id=camera_id,
         action="start",
-        message=f"Stream HLS iniciado. Acesse /hls/{camera_id}/index.m3u8",
+        message=mensagem,
     )
 
 
@@ -114,10 +146,11 @@ async def stop_detection(
     if not camera:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Câmera não encontrada")
 
+    # Para HLS e detecção YOLOv8
     parar_hls(camera_id)
 
     return DetectionControl(
         camera_id=camera_id,
         action="stop",
-        message="Stream HLS encerrado.",
+        message=f"Stream HLS e detecção encerrados para câmera {camera_id}.",
     )
