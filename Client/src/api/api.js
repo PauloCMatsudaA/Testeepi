@@ -36,11 +36,23 @@ export const autenticacaoApi = {
     ),
 };
 
+// ── Usuários ──────────────────────────────────────────────────────────────────
+export const usuariosApi = {
+  listar: (filtros) => cliente.get("/api/users", { params: filtros }),
+  buscarPor: (id) => cliente.get(`/api/users/${id}`),
+  criar: (dados) => cliente.post("/api/users", dados),
+  editar: (id, dados) => cliente.patch(`/api/users/${id}`, dados),
+  excluir: (id) => cliente.delete(`/api/users/${id}`),
+  alterarSenha: (id, dados) => cliente.patch(`/api/users/${id}/password`, dados),
+};
+
+// ── Ocorrências ───────────────────────────────────────────────────────────────
 export const ocorrenciasApi = {
   listar: (filtros) => cliente.get("/api/occurrences", { params: filtros }),
   buscarPor: (id) => cliente.get(`/api/occurrences/${id}`),
 };
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 export const dashboardApi = {
   estatisticas: () => cliente.get("/api/dashboard/stats"),
   tendenciaConformidade: (dias = 7) =>
@@ -51,6 +63,7 @@ export const dashboardApi = {
     cliente.get("/api/dashboard/recent", { params: { limit: limite } }),
 };
 
+// ── Relatórios ────────────────────────────────────────────────────────────────
 export const relatoriosApi = {
   resumo: (filtros) => cliente.get("/api/reports/summary", { params: filtros }),
   conformidadePorPeriodo: (filtros) =>
@@ -66,21 +79,24 @@ export const relatoriosApi = {
     }),
 };
 
+// ── Solicitações EPI ──────────────────────────────────────────────────────────
 export const solicitacoesApi = {
   listar: (filtros) => cliente.get("/api/epi-requests", { params: filtros }),
   aprovar: (id) => cliente.patch(`/api/epi-requests/${id}/approve`),
   rejeitar: (id) => cliente.patch(`/api/epi-requests/${id}/reject`),
 };
 
+// ── Câmeras ───────────────────────────────────────────────────────────────────
 export const camerasApi = {
   listar: () => cliente.get("/api/cameras"),
   criar: (dados) => cliente.post("/api/cameras", dados),
   editar: (id, dados) => cliente.patch(`/api/cameras/${id}`, dados),
   excluir: (id) => cliente.delete(`/api/cameras/${id}`),
-  iniciarDeteccao: (id) => cliente.post(`/api/cameras/${id}/start-detection`), // ← novo
-  pararDeteccao: (id) => cliente.post(`/api/cameras/${id}/stop-detection`),    // ← novo
+  iniciarDeteccao: (id) => cliente.post(`/api/cameras/${id}/start-detection`),
+  pararDeteccao: (id) => cliente.post(`/api/cameras/${id}/stop-detection`),
 };
 
+// ── Setores ───────────────────────────────────────────────────────────────────
 export const setoresApi = {
   listar: () => cliente.get("/api/sectors"),
   criar: (dados) => cliente.post("/api/sectors", dados),
@@ -88,6 +104,7 @@ export const setoresApi = {
   excluir: (id) => cliente.delete(`/api/sectors/${id}`),
 };
 
+// ── Configurações ─────────────────────────────────────────────────────────────
 export const configuracoesApi = {
   buscarPerfil: () => cliente.get("/api/settings/profile"),
   atualizarPerfil: (dados) => cliente.put("/api/settings/profile", dados),
