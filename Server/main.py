@@ -1,9 +1,11 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -12,7 +14,6 @@ from app.core.security import get_password_hash
 from app.models.user import User, UserRole
 from app.models.sector import Sector
 
-# Importa todos os models para o SQLAlchemy registrar antes do init_db/create_all
 import app.models  # noqa: F401
 
 from app.api import (
@@ -26,25 +27,14 @@ from app.api import (
     detection,
 )
 from app.services.detection_service_real import start_camera_streams
-from fastapi.staticfiles import StaticFiles
-import os
-
-os.makedirs("hls_streams", exist_ok=True)
-app.mount("/hls", StaticFiles(directory="hls_streams"), name="hls")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 async def create_default_admin():
-    """
-    Cria o setor padrão e o usuário admin padrão no primeiro startup,
-    caso ainda não existam.
-    """
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(Sector).where(Sector.name == "Geral")
-        )
+        result = await db.execute(select(Sector).where(Sector.name == "Geral"))
         default_sector = result.scalar_one_or_none()
 
         if not default_sector:
@@ -57,9 +47,7 @@ async def create_default_admin():
             await db.refresh(default_sector)
             logger.info("Setor padrão 'Geral' criado.")
 
-        result = await db.execute(
-            select(User).where(User.email == "admin@episee.com")
-        )
+        result = await db.execute(select(User).where(User.email == "admin@episee.com"))
         admin = result.scalar_one_or_none()
 
         if not admin:
@@ -81,12 +69,6 @@ async def create_default_admin():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Ciclo de vida da aplicação:
-    - inicializa banco
-    - cria dados padrão
-    - inicia streams de câmera em background
-    """
     logger.info("EPIsee Backend iniciando...")
 
     await init_db()
@@ -110,6 +92,7 @@ async def lifespan(app: FastAPI):
     logger.info("EPIsee Backend encerrando.")
 
 
+# ── Instância principal ────────────────────────────────────────────────────
 app = FastAPI(
     title="EPIsee API",
     description=(
@@ -123,7 +106,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-
+# ── CORS ───────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -132,26 +115,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Arquivos estáticos HLS ─────────────────────────────────────────────────
+os.makedirs("hls_streams", exist_ok=True)
+app.mount("/hls", StaticFiles(directory="hls_streams"), name="hls")  # ← agora DEPOIS de app = FastAPI(...)
 
+# ── Routers ────────────────────────────────────────────────────────────────
 API_PREFIX = "/api"
 
-app.include_router(auth.router, prefix=API_PREFIX)
-app.include_router(users.router, prefix=API_PREFIX)
+app.include_router(auth.router,        prefix=API_PREFIX)
+app.include_router(users.router,       prefix=API_PREFIX)
 app.include_router(occurrences.router, prefix=API_PREFIX)
-app.include_router(epi_requests.router, prefix=API_PREFIX)
-app.include_router(cameras.router, prefix=API_PREFIX)
-app.include_router(sectors.router, prefix=API_PREFIX)
-app.include_router(dashboard.router, prefix=API_PREFIX)
-app.include_router(detection.router, prefix=API_PREFIX)
+app.include_router(epi_requests.router,prefix=API_PREFIX)
+app.include_router(cameras.router,     prefix=API_PREFIX)
+app.include_router(sectors.router,     prefix=API_PREFIX)
+app.include_router(dashboard.router,   prefix=API_PREFIX)
+app.include_router(detection.router,   prefix=API_PREFIX)
 
 
+# ── Health check ───────────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
 async def health_check():
-    return {
-        "status": "ok",
-        "service": "EPIsee API",
-        "version": "1.0.0",
-    }
+    return {"status": "ok", "service": "EPIsee API", "version": "1.0.0"}
 
 
 @app.get("/", tags=["Health"])

@@ -10,26 +10,21 @@ router = APIRouter(prefix="/detection", tags=["Detection"])
 
 
 @router.post("/analyze-frame")
-async def analyze_frame(
+async def analyze_frame_endpoint(
     camera_id: int = Form(...),
     frame: UploadFile = File(...),
     _: User = Depends(get_current_user),
 ):
     """
-    STUB endpoint for YOLOv8 EPI detection on a single video frame.
+    Endpoint de detecção YOLOv8 para um frame de câmera.
 
-    Expected input:
+    Input:
     - camera_id: int (form field)
-    - frame: image file (JPEG/PNG)
+    - frame: arquivo de imagem (JPEG/PNG)
 
-    When implemented, this endpoint will:
-    1. Decode the uploaded image frame
-    2. Run YOLOv8 inference (best.pt) to detect EPIs
-    3. Return detected objects with classes, confidence scores, and bounding boxes
-    4. Create an Occurrence record if non-compliance is detected
-
-    See app/services/detection_service.py for full implementation instructions.
+    Retorna detecções, status de conformidade e confiança.
+    Atualmente usa stub — veja detection_service.py para implementação real.
     """
     frame_data = await frame.read()
-    result = await analyze_frame_stub(camera_id=camera_id, frame_data=frame_data)
+    result = await analyze_frame(camera_id=camera_id, frame_data=frame_data)
     return JSONResponse(content=result)
