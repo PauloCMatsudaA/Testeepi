@@ -11,26 +11,14 @@ from app.models.camera import Camera
 from app.schemas.camera import CameraCreate, CameraUpdate, CameraResponse, DetectionControl
 from app.services.detection_service_real import iniciar_hls, parar_hls
 
-
 router = APIRouter(prefix="/cameras", tags=["Cameras"])
 
-
-@router.post("/{camera_id}/start-detection")
-async def start_detection(camera_id: int, db=Depends(get_db), _=Depends(get_current_manager)):
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-    if not camera:
-        raise HTTPException(404, "Câmera não encontrada")
-
-    iniciar_hls(camera_id, camera.rtsp_url)
-    return {"camera_id": camera_id, "hls_url": f"/hls/{camera_id}/index.m3u8"}
 
 @router.get("/", response_model=List[CameraResponse])
 async def list_cameras(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """List all cameras."""
     result = await db.execute(select(Camera).order_by(Camera.name))
     cameras = result.scalars().all()
     return [CameraResponse.model_validate(c) for c in cameras]
@@ -42,11 +30,11 @@ async def create_camera(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_manager),
 ):
-    """Create a new camera. Manager only."""
     camera = Camera(
         name=camera_in.name,
         sector_id=camera_in.sector_id,
         rtsp_url=camera_in.rtsp_url,
+        location=camera_in.location if hasattr(camera_in, 'location') else None,
         is_active=camera_in.is_active,
     )
     db.add(camera)
@@ -62,7 +50,6 @@ async def update_camera(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_manager),
 ):
-    """Update a camera. Manager only."""
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -82,7 +69,6 @@ async def delete_camera(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_manager),
 ):
-    """Delete a camera. Manager only."""
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -97,33 +83,23 @@ async def start_detection(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_manager),
 ):
-    """
-    STUB — Start YOLOv8 detection on the given camera.
-
-    To implement: load the trained model (best.pt) and start reading frames
-    from the camera's RTSP stream using OpenCV. See detection_service.py for
-    complete instructions.
-    """
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Câmera não encontrada")
 
-    # Update last_seen timestamp as a stub signal
+    if not camera.rtsp_url:
+        raise HTTPException(status_code=400, detail="Câmera sem URL RTSP configurada.")
+
+    iniciar_hls(camera_id, camera.rtsp_url)
+
     camera.last_seen = datetime.utcnow()
     await db.flush()
 
     return DetectionControl(
         camera_id=camera_id,
         action="start",
-        message="STUB: detecção não implementada. Consulte detection_service.py para instruções YOLOv8.",
-        instructions=(
-            "1. Instale ultralytics: pip install ultralytics\n"
-            "2. Treine o modelo com seu dataset de EPIs\n"
-            "3. Substitua o stub em detection_service.py pela inferência real\n"
-            "4. Conecte ao stream RTSP desta câmera com OpenCV\n"
-            f"   rtsp_url: {camera.rtsp_url or 'não configurada'}"
-        ),
+        message=f"Stream HLS iniciado. Acesse /hls/{camera_id}/index.m3u8",
     )
 
 
@@ -133,14 +109,15 @@ async def stop_detection(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_manager),
 ):
-    """STUB — Stop YOLOv8 detection on the given camera."""
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Câmera não encontrada")
 
+    parar_hls(camera_id)
+
     return DetectionControl(
         camera_id=camera_id,
         action="stop",
-        message="STUB: detecção não implementada. Nenhum processo ativo para encerrar.",
+        message="Stream HLS encerrado.",
     )
