@@ -9,9 +9,21 @@ from app.core.deps import get_current_user, get_current_manager
 from app.models.user import User
 from app.models.camera import Camera
 from app.schemas.camera import CameraCreate, CameraUpdate, CameraResponse, DetectionControl
+from app.services.detection_service_real import iniciar_hls, parar_hls
+
 
 router = APIRouter(prefix="/cameras", tags=["Cameras"])
 
+
+@router.post("/{camera_id}/start-detection")
+async def start_detection(camera_id: int, db=Depends(get_db), _=Depends(get_current_manager)):
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+    if not camera:
+        raise HTTPException(404, "Câmera não encontrada")
+
+    iniciar_hls(camera_id, camera.rtsp_url)
+    return {"camera_id": camera_id, "hls_url": f"/hls/{camera_id}/index.m3u8"}
 
 @router.get("/", response_model=List[CameraResponse])
 async def list_cameras(

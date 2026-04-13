@@ -26,7 +26,11 @@ from app.api import (
     detection,
 )
 from app.services.detection_service_real import start_camera_streams
+from fastapi.staticfiles import StaticFiles
+import os
 
+os.makedirs("hls_streams", exist_ok=True)
+app.mount("/hls", StaticFiles(directory="hls_streams"), name="hls")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

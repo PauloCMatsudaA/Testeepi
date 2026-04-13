@@ -1,283 +1,311 @@
-import { useState, useEffect } from 'react';
-import { Camera, Plus, Edit2, Trash2, Wifi, WifiOff, X, AlertTriangle, Clock, Play, Monitor, Loader2 } from 'lucide-react';
-import clsx from 'clsx';
-import { camerasApi, setoresApi } from '../api/api';
+import { useEffect, useMemo, useState } from 'react';
+import { Camera, Plus, Pencil, Trash2, Play, Square, Wifi, WifiOff } from 'lucide-react';
+import { camerasApi, sectorsApi } from '../api/api';
+import CameraPlayer from '../components/CameraPlayer';
+import LoadingSpinner from '../components/LoadingSpinner';
+import '/styles/Cameras.css';
 
-// ── Modal de visualização de stream ──────────────────────────────────────────
-
-function ModalVisualizarCamera({ cam, aoFechar }) {
-  const ativa = cam.is_active;
-  const nomeSetor = cam.sector?.name || '—';
-  const urlRtsp   = cam.rtsp_url || '—';
-  const ultimoAcesso = cam.last_seen
-    ? new Date(cam.last_seen).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : 'Nunca';
-
-  return (
-    <div className="overlay">
-      <div className="modal-lg fade-in">
-        <div className="modal-head">
-          <div className="row gap-3">
-            <div className={clsx('icon-box-lg', ativa ? 'bg-green-50' : 'bg-slate-100')}>
-              <Monitor size={20} className={ativa ? 'text-ok' : 'text-slate-400'} />
-            </div>
-            <div>
-              <h3 className="modal-title">{cam.name}</h3>
-              <p className="sec-sub">{nomeSetor}</p>
-            </div>
-          </div>
-          <button onClick={aoFechar} className="btn-icon"><X size={18} /></button>
-        </div>
-
-        {/* Área de vídeo */}
-        <div className="mb-4 overflow-hidden rounded-xl bg-dark aspect-video flex items-center justify-center">
-          {ativa ? (
-            <div className="col items-center gap-3 text-center">
-              <div className="relative">
-                <div className="h-24 w-24 rounded-full bg-brand/10 flex items-center justify-center">
-                  <Play size={40} className="text-brand ml-1" />
-                </div>
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-ok">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ok opacity-75" />
-                </span>
-              </div>
-              <p className="text-sm font-medium text-white">Stream ao vivo disponível</p>
-              <p className="text-xs text-slate-400 max-w-xs">
-                Para exibir o vídeo em tempo real, conecte via HLS ou WebRTC.<br />
-                {/* Quando tiver player HLS: <video src={cam.hlsUrl} autoPlay muted className="w-full" /> */}
-              </p>
-            </div>
-          ) : (
-            <div className="col items-center gap-3">
-              <WifiOff size={40} className="text-slate-500" />
-              <p className="text-sm text-slate-400">Câmera offline — sem sinal</p>
-            </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4">
-          <div>
-            <p className="sec-sub">URL RTSP</p>
-            <p className="mt-1 font-mono text-xs text-slate-700 break-all">{urlRtsp}</p>
-          </div>
-          <div>
-            <p className="sec-sub">Último acesso</p>
-            <p className="mt-1 text-sm text-slate-700">{ultimoAcesso}</p>
-          </div>
-          <div>
-            <p className="sec-sub">Status</p>
-            <p className={clsx('mt-1 text-sm font-medium', ativa ? 'text-ok' : 'text-slate-400')}>
-              {ativa ? '● Ativa' : '○ Inativa'}
-            </p>
-          </div>
-          <div>
-            <p className="sec-sub">Setor</p>
-            <p className="mt-1 text-sm text-slate-700">{nomeSetor}</p>
-          </div>
-        </div>
-
-        <div className="modal-foot">
-          <button onClick={aoFechar} className="btn-ghost">Fechar</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Página principal ──────────────────────────────────────────────────────────
-
-const formVazio = { name: '', sector_id: '', rtsp_url: '', is_active: true };
+const cameraInicial = {
+  name: '',
+  location: '',
+  rtsp_url: '',
+  sector_id: '',
+  is_active: true,
+};
 
 export default function Cameras() {
-  const [cameras,      setCameras]      = useState([]);
-  const [setores,      setSetores]      = useState([]);
-  const [carregando,   setCarregando]   = useState(true);
-  const [salvando,     setSalvando]     = useState(false);
-  const [erro,         setErro]         = useState(null);
-  const [modalForm,    setModalForm]    = useState(false);
-  const [modalStream,  setModalStream]  = useState(null);
-  const [editando,     setEditando]     = useState(null);
-  const [confirmarDel, setConfirmarDel] = useState(null);
-  const [form,         setForm]         = useState(formVazio);
+  const [cameras, setCameras] = useState([]);
+  const [sectors, setSectors] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
 
-  // Carrega câmeras e setores ao montar
+  const [modalAberto, setModalAberto] = useState(false);
+  const [cameraEditando, setCameraEditando] = useState(null);
+  const [form, setForm] = useState(cameraInicial);
+
+  const [busca, setBusca] = useState('');
+  const [somenteAtivas, setSomenteAtivas] = useState(false);
+
   useEffect(() => {
-    async function carregar() {
-      try {
-        setCarregando(true);
-        const [resCameras, resSetores] = await Promise.all([
-          camerasApi.listar(),
-          setoresApi.listar(),
-        ]);
-        setCameras(resCameras.data);
-        setSetores(resSetores.data);
-      } catch (e) {
-        setErro('Não foi possível carregar as câmeras. Verifique se o backend está rodando.');
-      } finally {
-        setCarregando(false);
-      }
-    }
-    carregar();
+    carregarDados();
   }, []);
 
-  function abrirAdicionar() {
-    setEditando(null);
-    setForm({ ...formVazio, sector_id: setores[0]?.id || '' });
-    setModalForm(true);
-  }
+  async function carregarDados() {
+    setCarregando(true);
+    setErro('');
 
-  function abrirEditar(cam) {
-    setEditando(cam);
-    setForm({
-      name:      cam.name,
-      sector_id: cam.sector_id,
-      rtsp_url:  cam.rtsp_url || '',
-      is_active: cam.is_active,
-    });
-    setModalForm(true);
-  }
-
-  async function salvar() {
-    if (!form.name || !form.rtsp_url || !form.sector_id) return;
     try {
-      setSalvando(true);
-      const payload = {
-        name:      form.name,
-        sector_id: Number(form.sector_id),
-        rtsp_url:  form.rtsp_url,
-        is_active: form.is_active,
-      };
-      if (editando) {
-        const res = await camerasApi.editar(editando.id, payload);
-        setCameras((prev) => prev.map((c) => c.id === editando.id ? res.data : c));
+      const [camsRes, sectorsRes] = await Promise.all([
+        camerasApi.list(),
+        sectorsApi.list(),
+      ]);
+
+      setCameras(camsRes.data || []);
+      setSectors(sectorsRes.data || []);
+    } catch (error) {
+      setErro(error.response?.data?.detail || 'Não foi possível carregar as câmeras.');
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  function abrirNovaCamera() {
+    setCameraEditando(null);
+    setForm(cameraInicial);
+    setModalAberto(true);
+  }
+
+  function abrirEdicao(camera) {
+    setCameraEditando(camera);
+    setForm({
+      name: camera.name || '',
+      location: camera.location || '',
+      rtsp_url: camera.rtsp_url || '',
+      sector_id: camera.sector_id || '',
+      is_active: camera.is_active ?? true,
+    });
+    setModalAberto(true);
+  }
+
+  function fecharModal() {
+    setModalAberto(false);
+    setCameraEditando(null);
+    setForm(cameraInicial);
+  }
+
+  function atualizarCampo(event) {
+    const { name, value, type, checked } = event.target;
+    setForm((anterior) => ({
+      ...anterior,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  }
+
+  async function salvarCamera(event) {
+    event.preventDefault();
+    setSalvando(true);
+    setErro('');
+
+    const payload = {
+      name: form.name,
+      location: form.location,
+      rtsp_url: form.rtsp_url,
+      sector_id: form.sector_id ? Number(form.sector_id) : null,
+      is_active: form.is_active,
+    };
+
+    try {
+      if (cameraEditando) {
+        await camerasApi.update(cameraEditando.id, payload);
       } else {
-        const res = await camerasApi.criar(payload);
-        setCameras((prev) => [...prev, res.data]);
+        await camerasApi.create(payload);
       }
-      setModalForm(false);
-    } catch (e) {
-      alert('Erro ao salvar câmera: ' + (e.response?.data?.detail || e.message));
+
+      fecharModal();
+      await carregarDados();
+    } catch (error) {
+      setErro(error.response?.data?.detail || 'Não foi possível salvar a câmera.');
     } finally {
       setSalvando(false);
     }
   }
 
-  async function excluir(id) {
+  async function excluirCamera(cameraId) {
+    const confirmou = window.confirm('Tem certeza que deseja excluir esta câmera?');
+    if (!confirmou) return;
+
     try {
-      await camerasApi.excluir(id);
-      setCameras((prev) => prev.filter((c) => c.id !== id));
-      setConfirmarDel(null);
-    } catch (e) {
-      alert('Erro ao remover câmera: ' + (e.response?.data?.detail || e.message));
+      await camerasApi.remove(cameraId);
+      await carregarDados();
+    } catch (error) {
+      setErro(error.response?.data?.detail || 'Não foi possível excluir a câmera.');
     }
   }
 
-  // Enriquece câmera com objeto setor para o modal
-  function comSetor(cam) {
-    return { ...cam, sector: setores.find((s) => s.id === cam.sector_id) };
+  async function iniciarDeteccao(cameraId) {
+    try {
+      await camerasApi.startDetection(cameraId);
+      await carregarDados();
+    } catch (error) {
+      setErro(error.response?.data?.detail || 'Não foi possível iniciar a detecção.');
+    }
   }
 
-  const ativas = cameras.filter((c) => c.is_active).length;
+  async function pararDeteccao(cameraId) {
+    try {
+      await camerasApi.stopDetection(cameraId);
+      await carregarDados();
+    } catch (error) {
+      setErro(error.response?.data?.detail || 'Não foi possível parar a detecção.');
+    }
+  }
+
+  const camerasFiltradas = useMemo(() => {
+    return cameras.filter((camera) => {
+      const texto = busca.toLowerCase();
+
+      const combinaBusca =
+        camera.name?.toLowerCase().includes(texto) ||
+        camera.location?.toLowerCase().includes(texto) ||
+        camera.sector?.name?.toLowerCase().includes(texto);
+
+      const combinaAtiva = !somenteAtivas || camera.is_active;
+
+      return combinaBusca && combinaAtiva;
+    });
+  }, [cameras, busca, somenteAtivas]);
 
   if (carregando) {
     return (
-      <div className="pg-wide col items-center justify-center gap-3 py-20">
-        <Loader2 size={32} className="animate-spin text-brand" />
-        <p className="sec-sub">Carregando câmeras...</p>
+      <div className="page">
+        <LoadingSpinner />
       </div>
     );
   }
 
   return (
-    <div className="pg-wide">
-      {/* Erro de conexão */}
-      {erro && (
-        <div className="alert-err mb-4">
-          <AlertTriangle size={16} className="shrink-0" />
-          <p>{erro}</p>
+    <div className="page cameras-page page-enter">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Câmeras</h1>
+          <p className="page-subtitle">
+            Gerencie as câmeras, visualize o stream HLS e controle a detecção.
+          </p>
         </div>
-      )}
 
-      {/* Cabeçalho */}
-      <div className="row-between gap-3 flex-wrap">
-        <p className="sec-sub">{ativas} de {cameras.length} câmeras ativas</p>
-        <button onClick={abrirAdicionar} className="btn-primary">
-          <Plus size={16} /> Adicionar Câmera
+        <button className="btn btn-primary" onClick={abrirNovaCamera}>
+          <Plus size={16} />
+          Nova câmera
         </button>
       </div>
 
-      {/* Grid */}
-      {cameras.length === 0 ? (
-        <div className="col items-center gap-3 py-20 text-center">
-          <Camera size={40} className="text-slate-300" />
-          <p className="sec-sub">Nenhuma câmera cadastrada ainda.</p>
-          <button onClick={abrirAdicionar} className="btn-primary">
-            <Plus size={16} /> Adicionar primeira câmera
-          </button>
+      {erro && (
+        <div className="alert alert-err">
+          <span>{erro}</span>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-body">
+          <div className="cameras-toolbar">
+            <div className="field cameras-search">
+              <label className="label" htmlFor="busca-camera">Buscar</label>
+              <input
+                id="busca-camera"
+                className="input"
+                type="text"
+                placeholder="Buscar por nome, local ou setor"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+
+            <label className="cameras-checkbox">
+              <input
+                type="checkbox"
+                checked={somenteAtivas}
+                onChange={(e) => setSomenteAtivas(e.target.checked)}
+              />
+              <span>Mostrar somente câmeras ativas</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {camerasFiltradas.length === 0 ? (
+        <div className="card">
+          <div className="card-body cameras-empty">
+            <Camera size={36} />
+            <h3 className="section-title">Nenhuma câmera encontrada</h3>
+            <p className="section-sub">
+              Cadastre uma nova câmera ou ajuste os filtros de busca.
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {cameras.map((cam) => {
-            const ativa     = cam.is_active;
-            const nomeSetor = setores.find((s) => s.id === cam.sector_id)?.name || '—';
-            const ultimoAcesso = cam.last_seen
-              ? new Date(cam.last_seen).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-              : 'Nunca';
+        <div className="cameras-grid">
+          {camerasFiltradas.map((camera) => {
+            const online = camera.is_active;
+            const emDeteccao = camera.detection_active ?? camera.detecting ?? false;
 
             return (
-              <div key={cam.id} className="card card-hover p-5">
-                {/* Topo */}
-                <div className="row-between mb-3">
-                  <div className="row gap-3">
-                    <div className={clsx('icon-box-lg', ativa ? 'bg-green-50' : 'bg-slate-100')}>
-                      <Camera size={20} className={ativa ? 'text-ok' : 'text-slate-400'} />
-                    </div>
+              <div key={camera.id} className="card camera-card">
+                <div className="camera-preview">
+                  <CameraPlayer hlsUrl={`/hls/${camera.id}/index.m3u8`} />
+                </div>
+
+                <div className="card-body">
+                  <div className="camera-card-header">
                     <div>
-                      <h4 className="font-semibold text-slate-800">{cam.name}</h4>
-                      <p className="sec-sub">{nomeSetor}</p>
+                      <h3 className="camera-card-title">{camera.name}</h3>
+                      <p className="camera-card-location">{camera.location || 'Sem localização'}</p>
+                    </div>
+
+                    <div className={online ? 'badge badge-ok' : 'badge badge-gray'}>
+                      {online ? (
+                        <>
+                          <Wifi size={12} />
+                          Ativa
+                        </>
+                      ) : (
+                        <>
+                          <WifiOff size={12} />
+                          Inativa
+                        </>
+                      )}
                     </div>
                   </div>
-                  <span className={clsx('badge', ativa ? 'badge-ok' : 'badge-gray')}>
-                    <span className={ativa ? 'dot-ok' : 'dot-gray'} />
-                    {ativa ? 'Ativa' : 'Inativa'}
-                  </span>
-                </div>
 
-                {/* Aviso YOLOv8 */}
-                <div className="alert-warn text-xs mb-3">
-                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-                  <p>Para detecção em tempo real, configure o YOLOv8 em Configurações.</p>
-                </div>
+                  <div className="camera-meta">
+                    <div className="camera-meta-item">
+                      <span className="camera-meta-label">Setor</span>
+                      <span className="camera-meta-value">{camera.sector?.name || 'Não definido'}</span>
+                    </div>
 
-                {/* Info */}
-                <div className="space-y-2 text-sm">
-                  <div className="row-between">
-                    <span className="sec-sub row gap-1"><Wifi size={13} /> URL RTSP</span>
-                    <span className="truncate ml-2 max-w-[160px] font-mono text-xs text-slate-600">
-                      {cam.rtsp_url || '—'}
-                    </span>
+                    <div className="camera-meta-item">
+                      <span className="camera-meta-label">RTSP</span>
+                      <span className="camera-meta-value camera-rtsp">
+                        {camera.rtsp_url || 'Não informado'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="row-between">
-                    <span className="sec-sub row gap-1"><Clock size={13} /> Último acesso</span>
-                    <span className="text-xs text-slate-600">{ultimoAcesso}</span>
-                  </div>
-                </div>
 
-                {/* Ações */}
-                <div className="row gap-2 border-t border-slate-100 mt-4 pt-3">
-                  <button
-                    onClick={() => setModalStream(comSetor(cam))}
-                    className="btn btn-full btn-sm bg-brand/5 text-brand hover:bg-brand/10"
-                  >
-                    <Play size={13} /> Ver câmera
-                  </button>
-                  <button onClick={() => abrirEditar(cam)} className="btn btn-full btn-sm btn-ghost">
-                    <Edit2 size={13} /> Editar
-                  </button>
-                  <button onClick={() => setConfirmarDel(cam.id)} className="btn btn-full btn-sm btn-danger">
-                    <Trash2 size={13} /> Remover
-                  </button>
+                  <div className="camera-actions">
+                    {emDeteccao ? (
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => pararDeteccao(camera.id)}
+                      >
+                        <Square size={14} />
+                        Parar detecção
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => iniciarDeteccao(camera.id)}
+                      >
+                        <Play size={14} />
+                        Iniciar detecção
+                      </button>
+                    )}
+
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => abrirEdicao(camera)}
+                    >
+                      <Pencil size={14} />
+                      Editar
+                    </button>
+
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => excluirCamera(camera.id)}
+                    >
+                      <Trash2 size={14} />
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -285,98 +313,91 @@ export default function Cameras() {
         </div>
       )}
 
-      {/* Modal visualizar câmera */}
-      {modalStream && <ModalVisualizarCamera cam={modalStream} aoFechar={() => setModalStream(null)} />}
-
-      {/* Modal adicionar/editar */}
-      {modalForm && (
-        <div className="overlay">
-          <div className="modal fade-in">
-            <div className="modal-head">
-              <h3 className="modal-title">{editando ? 'Editar Câmera' : 'Adicionar Câmera'}</h3>
-              <button onClick={() => setModalForm(false)} className="btn-icon"><X size={18} /></button>
+      {modalAberto && (
+        <div className="overlay" onClick={fecharModal}>
+          <div className="modal modal-lg fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {cameraEditando ? 'Editar câmera' : 'Nova câmera'}
+              </h2>
             </div>
-            <div className="space-y-4">
+
+            <form onSubmit={salvarCamera} className="cameras-form">
               <div className="field">
-                <label className="label">Nome da Câmera</label>
+                <label className="label" htmlFor="name">Nome</label>
                 <input
+                  id="name"
+                  name="name"
                   className="input"
-                  placeholder="Ex: CAM-09"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={atualizarCampo}
+                  placeholder="Ex.: Portão principal"
+                  required
                 />
               </div>
+
               <div className="field">
-                <label className="label">Setor</label>
+                <label className="label" htmlFor="location">Localização</label>
+                <input
+                  id="location"
+                  name="location"
+                  className="input"
+                  value={form.location}
+                  onChange={atualizarCampo}
+                  placeholder="Ex.: Entrada do almoxarifado"
+                />
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="rtsp_url">URL RTSP</label>
+                <input
+                  id="rtsp_url"
+                  name="rtsp_url"
+                  className="input"
+                  value={form.rtsp_url}
+                  onChange={atualizarCampo}
+                  placeholder="rtsp://usuario:senha@ip:554/stream1"
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="sector_id">Setor</label>
                 <select
-                  className="select"
+                  id="sector_id"
+                  name="sector_id"
+                  className="input select"
                   value={form.sector_id}
-                  onChange={(e) => setForm({ ...form, sector_id: e.target.value })}
+                  onChange={atualizarCampo}
                 >
                   <option value="">Selecione um setor</option>
-                  {setores.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                  {sectors.map((sector) => (
+                    <option key={sector.id} value={sector.id}>
+                      {sector.name}
+                    </option>
                   ))}
                 </select>
               </div>
-              <div className="field">
-                <label className="label">URL RTSP</label>
-                <input
-                  className="input font-mono text-sm"
-                  placeholder="rtsp://usuario:senha@192.168.x.x:554/stream"
-                  value={form.rtsp_url}
-                  onChange={(e) => setForm({ ...form, rtsp_url: e.target.value })}
-                />
-                <p className="mt-1 text-xs text-slate-400">
-                  Exemplo: rtsp://PauloCesar:Episee1604@192.168.39.8:554/stream1
-                </p>
-              </div>
-              <div className="field">
-                <label className="label">Status</label>
-                <select
-                  className="select"
-                  value={form.is_active ? 'ativo' : 'inativo'}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.value === 'ativo' })}
-                >
-                  <option value="ativo">Ativa</option>
-                  <option value="inativo">Inativa</option>
-                </select>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button onClick={() => setModalForm(false)} className="btn-ghost">Cancelar</button>
-              <button
-                onClick={salvar}
-                disabled={!form.name || !form.rtsp_url || !form.sector_id || salvando}
-                className="btn-primary disabled:opacity-50"
-              >
-                {salvando
-                  ? <><Loader2 size={14} className="animate-spin" /> Salvando...</>
-                  : editando ? 'Salvar Alterações' : 'Adicionar'
-                }
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Modal confirmar exclusão */}
-      {confirmarDel && (
-        <div className="overlay">
-          <div className="modal-sm fade-in">
-            <div className="row gap-3 mb-4">
-              <div className="icon-box-lg bg-red-100"><Trash2 size={20} className="text-err" /></div>
-              <div>
-                <h3 className="font-semibold text-slate-800">Remover Câmera</h3>
-                <p className="sec-sub">Esta ação não pode ser desfeita.</p>
+              <label className="cameras-checkbox">
+                <input
+                  type="checkbox"
+                  name="is_active"
+                  checked={form.is_active}
+                  onChange={atualizarCampo}
+                />
+                <span>Câmera ativa</span>
+              </label>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={fecharModal}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={salvando}>
+                  {salvando ? 'Salvando...' : 'Salvar câmera'}
+                </button>
               </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmarDel(null)} className="btn-ghost">Cancelar</button>
-              <button onClick={() => excluir(confirmarDel)} className="btn bg-err text-white hover:bg-red-600">
-                Remover
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

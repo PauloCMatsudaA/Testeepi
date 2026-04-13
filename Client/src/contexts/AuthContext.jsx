@@ -15,33 +15,25 @@ export function ProvedorAutenticacao({ children }) {
   const estaAutenticado = !!token && !!usuario;
 
   const entrar = useCallback(async (email, senha) => {
-    setCarregando(true);
-    try {
-      // TODO: descomentar para usar API real
-      // const { data } = await autenticacaoApi.login(email, senha);
-      // localStorage.setItem('episee_token', data.access_token);
-      // localStorage.setItem('episee_user', JSON.stringify(data.user));
-      // setToken(data.access_token);
-      // setUsuario(data.user);
+  setCarregando(true);
+  try {
+    const { data } = await autenticacaoApi.login(email, senha);
 
-      // Mock para demonstração
-      if (email === 'admin@episee.com' && senha === 'admin123') {
-        const usuarioMock = { id: 1, nome: 'Carlos Silva', email, cargo: 'Gestor' };
-        const tokenMock   = 'mock-jwt-token-episee-2024';
-        localStorage.setItem('episee_token', tokenMock);
-        localStorage.setItem('episee_user', JSON.stringify(usuarioMock));
-        setToken(tokenMock);
-        setUsuario(usuarioMock);
-        return { sucesso: true };
-      }
+    localStorage.setItem('episee_token', data.access_token);
+    localStorage.setItem('episee_user', JSON.stringify(data.user ?? { email }));
+    setToken(data.access_token);
+    setUsuario(data.user ?? { email });
 
-      return { sucesso: false, erro: 'Credenciais inválidas. Verifique seu e-mail e senha.' };
-    } catch (erro) {
-      return { sucesso: false, erro: erro.response?.data?.message || 'Erro ao conectar com o servidor.' };
-    } finally {
-      setCarregando(false);
-    }
-  }, []);
+    return { sucesso: true };
+  } catch (erro) {
+    return {
+      sucesso: false,
+      erro: erro.response?.data?.detail || 'Erro ao conectar com o servidor.',
+    };
+  } finally {
+    setCarregando(false);
+  }
+}, []);
 
   const sair = useCallback(() => {
     localStorage.removeItem('episee_token');
