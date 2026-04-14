@@ -10,9 +10,14 @@ import numpy as np
 from pathlib import Path
 from openai import OpenAI
 from app.core.config import get_settings
+import glob
 
 EMBEDDING_MODEL = "text-embedding-3-small"
-
+arquivos = glob.glob("data/nr6_chunks/*.json")
+todos_chunks = []
+for arquivo in arquivos:
+    with open(arquivo, "r", encoding="utf-8") as f:
+        todos_chunks.extend(json.load(f))
 
 def load_chunks(chunks_path: str) -> list[dict]:
     """Carrega todos os arquivos JSON da pasta de chunks."""
@@ -44,8 +49,10 @@ def build_index():
     chunks = load_chunks(settings.nr6_chunks_path)
     print(f"  → {len(chunks)} chunks encontrados.")
 
-    texts = [f"{c['titulo']}\n{c['texto']}" for c in chunks]
-
+    texts = [
+    f"{c.get('titulo') or c.get('secao') or c.get('fonte', '')}\n{c['texto']}"
+    for c in chunks
+]
     print("Gerando embeddings via OpenAI...")
     embeddings = get_embeddings(texts, client)
     print(f"  → Embeddings gerados: shape {embeddings.shape}")

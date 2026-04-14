@@ -2,8 +2,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ⚠️ IP da sua máquina na rede local
-const BASE_URL = 'http://10.0.0.246:8000/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -34,7 +33,6 @@ api.interceptors.response.use(
   }
 );
 
-// ── Autenticação ──────────────────────────────────────────────────────────────
 // Login padrão: admin@episee.com / admin123
 export const loginApi = async (email, senha) => {
   const params = new URLSearchParams();
