@@ -41,7 +41,7 @@ CLASSES_EPI = {
 # ⚠️ Ajuste conforme seu ambiente:
 # Use {"safety-vest"} para testar (a câmera atual não usa capacete)
 # Use {"safety-vest", "helmet"} em produção
-EPIS_OBRIGATORIOS = {"safety-vest"}
+EPIS_OBRIGATORIOS = {"helmet"}
 
 CONFIANCA_MINIMA = 0.50
 INTERVALO_SALVAR = 30   # segundos mínimos entre ocorrências salvas por câmera
