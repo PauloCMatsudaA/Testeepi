@@ -1,38 +1,48 @@
-import { NavLink } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { NavLink } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 import {
-  ShieldCheck, LayoutDashboard, AlertTriangle, FileBarChart,
-  ClipboardList, Camera, Building2, Settings, LogOut, X,
-} from 'lucide-react';
+  ShieldCheck,
+  LayoutDashboard,
+  AlertTriangle,
+  FileBarChart,
+  ClipboardList,
+  Camera,
+  Building2,
+  Settings,
+  LogOut,
+  X,
+  Users,
+} from "lucide-react";
 
 const itensMenu = [
-  { rota: '/dashboard',    rotulo: 'Dashboard',       Icone: LayoutDashboard },
-  { rota: '/occurrences',  rotulo: 'Ocorrências',      Icone: AlertTriangle   },
-  { rota: '/reports',      rotulo: 'Relatórios',       Icone: FileBarChart    },
-  { rota: '/epi-requests', rotulo: 'Solicitações EPI', Icone: ClipboardList   },
-  { rota: '/cameras',      rotulo: 'Câmeras',          Icone: Camera          },
-  { rota: '/sectors',      rotulo: 'Setores',          Icone: Building2       },
-  { rota: '/settings',     rotulo: 'Configurações',    Icone: Settings        },
+  { rota: "/dashboard", rotulo: "Dashboard", Icone: LayoutDashboard },
+  { rota: "/occurrences", rotulo: "Ocorrências", Icone: AlertTriangle },
+  { rota: "/reports", rotulo: "Relatórios", Icone: FileBarChart },
+  { rota: "/epi-requests", rotulo: "Solicitações EPI", Icone: ClipboardList },
+  { rota: "/cameras", rotulo: "Câmeras", Icone: Camera },
+  { rota: "/sectors", rotulo: "Setores", Icone: Building2 },
+  { rota: "/users", rotulo: "Usuários", Icone: Users },
+  { rota: "/settings", rotulo: "Configurações", Icone: Settings },
 ];
 
 export default function MenuGaveta({ aberto, aoFechar }) {
   const { usuario, sair } = useAuth();
 
-  const inicial = usuario?.nome?.charAt(0) || usuario?.name?.charAt(0) || 'U';
-  const nome    = usuario?.nome || usuario?.name || '';
-  const cargo   = usuario?.cargo || usuario?.role || '';
+  const inicial = usuario?.nome?.charAt(0) || usuario?.name?.charAt(0) || "U";
+  const nome = usuario?.nome || usuario?.name || "";
+  const cargo = usuario?.cargo || usuario?.role || "";
 
   return (
     <>
       <div
         aria-hidden="true"
         onClick={aoFechar}
-        className={`nav-overlay ${aberto ? 'open' : 'closed'}`}
+        className={`nav-overlay ${aberto ? "open" : "closed"}`}
       />
 
       <nav
         aria-label="Menu de navegação"
-        className={`nav-drawer ${aberto ? 'open' : 'closed'}`}
+        className={`nav-drawer ${aberto ? "open" : "closed"}`}
       >
         <div className="nav-header">
           <div className="nav-logo">
@@ -43,7 +53,11 @@ export default function MenuGaveta({ aberto, aoFechar }) {
               EPI<span>see</span>
             </span>
           </div>
-          <button onClick={aoFechar} className="nav-close" aria-label="Fechar menu">
+          <button
+            onClick={aoFechar}
+            className="nav-close"
+            aria-label="Fechar menu"
+          >
             <X size={18} />
           </button>
         </div>
@@ -54,7 +68,9 @@ export default function MenuGaveta({ aberto, aoFechar }) {
               <NavLink
                 to={rota}
                 onClick={aoFechar}
-                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                className={({ isActive }) =>
+                  `nav-link${isActive ? " active" : ""}`
+                }
               >
                 <Icone size={18} />
                 {rotulo}
@@ -73,7 +89,13 @@ export default function MenuGaveta({ aberto, aoFechar }) {
               </div>
             </div>
           )}
-          <button onClick={() => { sair(); aoFechar(); }} className="nav-logout">
+          <button
+            onClick={() => {
+              sair();
+              aoFechar();
+            }}
+            className="nav-logout"
+          >
             <LogOut size={16} />
             Sair
           </button>

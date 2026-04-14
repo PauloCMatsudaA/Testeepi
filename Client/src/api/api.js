@@ -113,5 +113,14 @@ export const configuracoesApi = {
   salvarNotificacoes: (dados) =>
     cliente.put("/api/settings/notifications", dados),
 };
+export const reportsApi = {
+  gerarAnalise: (dados) => cliente.post('/api/reports/generate-analysis', dados),
+};
+export const epiRequestsApi = {
+  listar:   (filtros) => cliente.get('/api/epi-requests', { params: filtros }),
+  aprovar:  (id)      => cliente.patch(`/api/epi-requests/${id}/approve`),
+  rejeitar: (id)      => cliente.patch(`/api/epi-requests/${id}/reject`),
+  criar:    (dados)   => cliente.post('/api/epi-requests', dados),
+};
 
 export default cliente;

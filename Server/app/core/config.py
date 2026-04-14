@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import List
-
+from typing import List, Optional
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./episee.db"
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     SMTP_USER: str = "engs-pauloalmeida@gmail.com"        # seu e-mail: ex: episee@gmail.com
     SMTP_PASSWORD: str = ""    # senha de app do Gmail (não a senha normal)
     EMAIL_FROM: str = "engs-pauloalmeida@gmail.com"       
-
+    OPENAI_API_KEY: Optional[str] = None
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

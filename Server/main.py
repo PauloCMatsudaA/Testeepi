@@ -14,6 +14,8 @@ from app.core.security import get_password_hash
 from app.models.user import User, UserRole
 from app.models.sector import Sector
 
+from app.api import reports 
+
 import app.models  # noqa: F401
 
 from app.api import (
@@ -130,6 +132,8 @@ app.include_router(cameras.router,     prefix=API_PREFIX)
 app.include_router(sectors.router,     prefix=API_PREFIX)
 app.include_router(dashboard.router,   prefix=API_PREFIX)
 app.include_router(detection.router,   prefix=API_PREFIX)
+app.include_router(reports.router,     prefix="/api")
+
 
 
 # ── Health check ───────────────────────────────────────────────────────────
