@@ -2,10 +2,11 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import Response
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -14,37 +15,29 @@ from app.core.security import get_password_hash
 from app.models.user import User, UserRole
 from app.models.sector import Sector
 from app.api import notifications
-
-from app.api import reports 
+from app.api import reports
 
 import app.models  # noqa: F401
 
 from app.api import (
-    auth,
-    users,
-    occurrences,
-    epi_requests,
-    cameras,
-    sectors,
-    dashboard,
-    detection,
+    auth, users, occurrences, epi_requests,
+    cameras, sectors, dashboard, detection,
 )
 from app.services.detection_service_real import start_camera_streams
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+HLS_DIR = Path("hls_streams")
+HLS_DIR.mkdir(exist_ok=True)
+
 
 async def create_default_admin():
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Sector).where(Sector.name == "Geral"))
         default_sector = result.scalar_one_or_none()
-
         if not default_sector:
-            default_sector = Sector(
-                name="Geral",
-                description="Setor padrão do sistema",
-            )
+            default_sector = Sector(name="Geral", description="Setor padrão do sistema")
             db.add(default_sector)
             await db.flush()
             await db.refresh(default_sector)
@@ -52,7 +45,6 @@ async def create_default_admin():
 
         result = await db.execute(select(User).where(User.email == "admin@episee.com"))
         admin = result.scalar_one_or_none()
-
         if not admin:
             admin = User(
                 name="Administrador EPIsee",
@@ -66,50 +58,34 @@ async def create_default_admin():
             db.add(admin)
             await db.flush()
             logger.info("Usuário padrão admin@episee.com criado.")
-
         await db.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("EPIsee Backend iniciando...")
-
     await init_db()
-    logger.info("Tabelas criadas/verificadas no banco de dados.")
-
     await create_default_admin()
-
     camera_task = asyncio.create_task(start_camera_streams())
     logger.info("Serviço de câmeras iniciado em background.")
-
-    logger.info("EPIsee Backend pronto. Acesse /docs para a documentação.")
     yield
-
     logger.info("Encerrando serviço de câmeras...")
     camera_task.cancel()
     try:
         await camera_task
     except asyncio.CancelledError:
-        logger.info("Serviço de câmeras encerrado com sucesso.")
-
+        pass
     logger.info("EPIsee Backend encerrando.")
 
 
-# ── Instância principal ────────────────────────────────────────────────────
 app = FastAPI(
     title="EPIsee API",
-    description=(
-        "Backend do sistema EPIsee — detecção de EPIs e gestão de segurança do trabalho.\n\n"
-        "**Usuário padrão:** admin@episee.com | **Senha:** admin123\n\n"
-        "Acesse `/docs` para testar a API."
-    ),
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# ── CORS ───────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -118,27 +94,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Arquivos estáticos HLS ─────────────────────────────────────────────────
-os.makedirs("hls_streams", exist_ok=True)
-app.mount("/hls", StaticFiles(directory="hls_streams"), name="hls")  # ← agora DEPOIS de app = FastAPI(...)
 
-# ── Routers ────────────────────────────────────────────────────────────────
+# ── Endpoint HLS dedicado ─────────────────────────────────────────────────────
+# IMPORTANTE: NÃO usar StaticFiles aqui!
+# StaticFiles calcula o Content-Length ANTES de ler o arquivo.
+# O ffmpeg escreve no .ts enquanto o Starlette serve → tamanho muda → CRASH.
+# Solução: ler o arquivo inteiro em memória PRIMEIRO, aí o Content-Length bate.
+@app.get("/hls/{camera_id}/{filename}")
+async def serve_hls(camera_id: str, filename: str):
+    if ".." in camera_id or ".." in filename:
+        raise HTTPException(status_code=400, detail="Caminho inválido")
+
+    file_path = HLS_DIR / camera_id / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    if filename.endswith(".m3u8"):
+        media_type = "application/vnd.apple.mpegurl"
+    elif filename.endswith(".ts"):
+        media_type = "video/mp2t"
+    else:
+        media_type = "application/octet-stream"
+
+    content = file_path.read_bytes()   # lê tudo antes de responder
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
+
+# ── Routers ───────────────────────────────────────────────────────────────────
 API_PREFIX = "/api"
 
-app.include_router(auth.router,        prefix=API_PREFIX)
-app.include_router(users.router,       prefix=API_PREFIX)
-app.include_router(occurrences.router, prefix=API_PREFIX)
-app.include_router(epi_requests.router,prefix=API_PREFIX)
-app.include_router(cameras.router,     prefix=API_PREFIX)
-app.include_router(sectors.router,     prefix=API_PREFIX)
-app.include_router(dashboard.router,   prefix=API_PREFIX)
-app.include_router(detection.router,   prefix=API_PREFIX)
-app.include_router(reports.router,     prefix="/api")
+app.include_router(auth.router,          prefix=API_PREFIX)
+app.include_router(users.router,         prefix=API_PREFIX)
+app.include_router(occurrences.router,   prefix=API_PREFIX)
+app.include_router(epi_requests.router,  prefix=API_PREFIX)
+app.include_router(cameras.router,       prefix=API_PREFIX)
+app.include_router(sectors.router,       prefix=API_PREFIX)
+app.include_router(dashboard.router,     prefix=API_PREFIX)
+app.include_router(detection.router,     prefix=API_PREFIX)
+app.include_router(reports.router,       prefix=API_PREFIX)
+app.include_router(notifications.router, prefix=API_PREFIX)
 
-app.include_router(notifications.router, prefix="/api")
 
-
-# ── Health check ───────────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "ok", "service": "EPIsee API", "version": "1.0.0"}
@@ -146,8 +151,4 @@ async def health_check():
 
 @app.get("/", tags=["Health"])
 async def root():
-    return {
-        "message": "EPIsee API está rodando.",
-        "docs": "/docs",
-        "health": "/health",
-    }
+    return {"message": "EPIsee API está rodando.", "docs": "/docs", "health": "/health"}
