@@ -13,6 +13,7 @@ from app.core.database import AsyncSessionLocal, init_db
 from app.core.security import get_password_hash
 from app.models.user import User, UserRole
 from app.models.sector import Sector
+from app.api import notifications
 
 from app.api import reports 
 
@@ -134,6 +135,7 @@ app.include_router(dashboard.router,   prefix=API_PREFIX)
 app.include_router(detection.router,   prefix=API_PREFIX)
 app.include_router(reports.router,     prefix="/api")
 
+app.include_router(notifications.router, prefix="/api")
 
 
 # ── Health check ───────────────────────────────────────────────────────────

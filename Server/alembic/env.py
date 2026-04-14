@@ -2,7 +2,9 @@
 Alembic environment configuration for EPIsee Backend.
 Supports async SQLAlchemy with aiosqlite/asyncpg.
 """
-
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import asyncio
 from logging.config import fileConfig
 

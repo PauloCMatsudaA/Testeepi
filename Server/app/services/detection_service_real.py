@@ -14,24 +14,32 @@ logger = logging.getLogger(__name__)
 HLS_DIR = "hls_streams"
 os.makedirs(HLS_DIR, exist_ok=True)
 
-# Caminho do modelo treinado — coloque o best.pt dentro da pasta Server/
+# Caminho do modelo treinado — coloque o best.pt dentro da pasta raiz do Server/
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "best.pt")
 
-# Ajuste as classes conforme o seu best.pt foi treinado
-# Exemplo: se treinou com SH17 ou dataset similar
+# Classes exatas do seu data.yaml de treinamento:
+# 0: person  1: glasses  2: face-mask-medical  3: face-guard
+# 4: earmuffs  5: gloves  6: safety-vest  7: helmet
+# 8: medical-suit  9: safety-suit
+CLASSE_PESSOA = {"person"}  # classe 0 — separa pessoa dos EPIs
+
 CLASSES_EPI = {
-    "helmet", "hard hat", "capacete",
-    "vest", "colete", "colete_refletivo",
-    "glove", "luva",
-    "glasses", "oculos", "oculos_protecao",
-    "mask", "mascara",
-    "boot", "bota", "bota_seguranca",
+    "glasses",            # 1
+    "face-mask-medical",  # 2
+    "face-guard",         # 3
+    "earmuffs",           # 4
+    "gloves",             # 5
+    "safety-vest",        # 6
+    "helmet",             # 7
+    "medical-suit",       # 8
+    "safety-suit",        # 9
 }
 
-# EPIs obrigatórios para considerar "conforme" (ajuste conforme seu projeto)
-EPIS_OBRIGATORIOS = {"helmet", "vest"}  # ou {"capacete", "colete_refletivo"}
+# EPIs mínimos obrigatórios para considerar a pessoa "conforme"
+# Ajuste conforme as regras do seu ambiente de trabalho
+EPIS_OBRIGATORIOS = {"safety-vest", "helmet"}
 
-CONFIANCA_MINIMA = 0.5  # só detecta acima de 50% de confiança
+CONFIANCA_MINIMA = 0.50  # ignora detecções abaixo de 50% de confiança
 
 processos_ffmpeg: dict[int, subprocess.Popen] = {}
 tarefas_deteccao: dict[int, asyncio.Task] = {}
@@ -98,7 +106,6 @@ def parar_hls(camera_id: int):
         proc.terminate()
         logger.info(f"HLS encerrado para câmera {camera_id}")
 
-    # Para a task de detecção também
     task = tarefas_deteccao.pop(camera_id, None)
     if task:
         task.cancel()
@@ -107,10 +114,25 @@ def parar_hls(camera_id: int):
 # ── Detecção com YOLOv8 ────────────────────────────────────────────────────────
 
 async def analisar_frame(camera_id: int, frame: np.ndarray) -> dict:
-    """Roda YOLOv8 no frame e retorna resultado."""
+    """
+    Roda YOLOv8 no frame e retorna resultado.
+
+    Lógica de status:
+    - 'sem_pessoa'   → nenhuma pessoa detectada no frame (ignora, não é violação)
+    - 'conforme'     → pessoa detectada + todos os EPIs obrigatórios presentes ✅
+    - 'nao_conforme' → pessoa detectada + falta pelo menos 1 EPI obrigatório ❌
+    - 'erro'         → modelo não carregado
+    """
     model = get_model()
     if model is None:
-        return {"status": "erro", "detections": [], "epi_detected": [], "confidence": 0.0}
+        return {
+            "status": "erro",
+            "detections": [],
+            "epi_detected": [],
+            "epis_ausentes": [],
+            "pessoa_detectada": False,
+            "confidence": 0.0,
+        }
 
     loop = asyncio.get_event_loop()
 
@@ -130,25 +152,38 @@ async def analisar_frame(camera_id: int, frame: np.ndarray) -> dict:
 
     deteccoes = await loop.run_in_executor(None, inferir)
 
-    epis_encontrados = {d["class"] for d in deteccoes}
-    
-    # Verifica se os EPIs obrigatórios foram detectados
-    conformidade = EPIS_OBRIGATORIOS.issubset(epis_encontrados) if EPIS_OBRIGATORIOS else True
-    status = "conforme" if conformidade else "nao_conforme"
+    classes_detectadas = {d["class"] for d in deteccoes}
+    pessoa_detectada   = bool(classes_detectadas & CLASSE_PESSOA)
+    epis_encontrados   = classes_detectadas & CLASSES_EPI
+    epis_ausentes      = EPIS_OBRIGATORIOS - epis_encontrados
+
+    if not pessoa_detectada:
+        status = "sem_pessoa"    # frame sem pessoa → não registra violação
+    elif not epis_ausentes:
+        status = "conforme"      # pessoa + todos os EPIs obrigatórios ✅
+    else:
+        status = "nao_conforme"  # pessoa detectada, mas falta EPI ❌
+
     confianca = max((d["confidence"] for d in deteccoes), default=0.0)
 
     return {
-        "camera_id": camera_id,
-        "status": status,
-        "detections": deteccoes,
-        "epi_detected": list(epis_encontrados),
-        "confidence": confianca,
+        "camera_id":        camera_id,
+        "status":           status,
+        "detections":       deteccoes,
+        "epi_detected":     list(epis_encontrados),
+        "epis_ausentes":    list(epis_ausentes),
+        "pessoa_detectada": pessoa_detectada,
+        "confidence":       confianca,
     }
 
 
+# ── Processamento contínuo do stream ──────────────────────────────────────────
+
 async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int):
     """
-    Lê frames do RTSP com OpenCV, roda YOLOv8 e salva ocorrências no banco.
+    Lê frames do RTSP com OpenCV, roda YOLOv8 e:
+    - Salva Occurrence no banco quando status == 'nao_conforme'
+    - Cria Notification para todos os gestores ativos
     Roda em background enquanto a detecção estiver ativa.
     """
     from app.core.database import AsyncSessionLocal
@@ -161,8 +196,8 @@ async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int)
         logger.error(f"Não foi possível abrir o stream RTSP da câmera {camera_id}")
         return
 
-    INTERVALO_FRAMES = 30       # analisa 1 a cada 30 frames (~1 FPS em 30fps)
-    INTERVALO_SALVAR = 60       # salva no banco no máximo 1 ocorrência por minuto por câmera
+    INTERVALO_FRAMES = 30   # analisa 1 a cada 30 frames (~1 FPS em stream 30fps)
+    INTERVALO_SALVAR = 60   # salva no banco no máximo 1 ocorrência por minuto por câmera
     frame_count = 0
     ultimo_save = datetime.utcnow()
 
@@ -170,7 +205,7 @@ async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int)
         while True:
             ret, frame = cap.read()
             if not ret:
-                logger.warning(f"Stream da câmera {camera_id} interrompido. Tentando reconectar...")
+                logger.warning(f"Stream da câmera {camera_id} interrompido. Reconectando...")
                 await asyncio.sleep(5)
                 cap.release()
                 cap = cv2.VideoCapture(rtsp_url)
@@ -183,41 +218,81 @@ async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int)
 
             resultado = await analisar_frame(camera_id, frame)
 
+            # Ignora frames sem pessoa ou conformes
+            if resultado["status"] != "nao_conforme":
+                await asyncio.sleep(0)
+                continue
+
             agora = datetime.utcnow()
-            segundos_desde_save = (agora - ultimo_save).total_seconds()
+            if (agora - ultimo_save).total_seconds() < INTERVALO_SALVAR:
+                await asyncio.sleep(0)
+                continue
 
-            # Salva no banco apenas se não conforme E passou o intervalo mínimo
-            if resultado["status"] == "nao_conforme" and segundos_desde_save >= INTERVALO_SALVAR:
-                # Salva imagem do frame como evidência
-                image_path = None
-                try:
-                    img_dir = f"hls_streams/{camera_id}/frames"
-                    os.makedirs(img_dir, exist_ok=True)
-                    image_path = f"{img_dir}/{int(agora.timestamp())}.jpg"
-                    cv2.imwrite(image_path, frame)
-                except Exception:
-                    pass
+            # Salva frame como evidência
+            image_path = None
+            try:
+                img_dir = f"hls_streams/{camera_id}/frames"
+                os.makedirs(img_dir, exist_ok=True)
+                image_path = f"{img_dir}/{int(agora.timestamp())}.jpg"
+                cv2.imwrite(image_path, frame)
+            except Exception:
+                pass
 
-                async with AsyncSessionLocal() as db:
-                    occ = Occurrence(
-                        camera_id=camera_id,
-                        sector_id=sector_id,
-                        status=OccurrenceStatus.nao_conforme,
-                        epi_detected=resultado["epi_detected"],
-                        confidence=resultado["confidence"],
-                        image_path=image_path,
-                        timestamp=agora,
+            async with AsyncSessionLocal() as db:
+                from sqlalchemy import select
+                from app.models.user import User
+                from app.models.notification import Notification
+
+                # 1. Salva ocorrência
+                occ = Occurrence(
+                    camera_id=camera_id,
+                    sector_id=sector_id,
+                    status=OccurrenceStatus.nao_conforme,
+                    epi_detected=resultado["epi_detected"],
+                    confidence=resultado["confidence"],
+                    image_path=image_path,
+                    timestamp=agora,
+                )
+                db.add(occ)
+                await db.flush()  # gera occ.id antes do commit
+
+                # 2. Monta texto da notificação
+                ausentes_str = (
+                    ", ".join(resultado["epis_ausentes"])
+                    if resultado["epis_ausentes"]
+                    else "EPI não identificado"
+                )
+                texto_notif = (
+                    f"Pessoa sem EPI — Câmera {camera_id} | "
+                    f"Faltando: {ausentes_str} | "
+                    f"Confiança: {resultado['confidence'] * 100:.0f}%"
+                )
+
+                # 3. Cria notificação para cada gestor ativo
+                gestores_res = await db.execute(
+                    select(User).where(
+                        User.role == "gestor",
+                        User.is_active == True,
                     )
-                    db.add(occ)
-                    await db.commit()
-                    logger.info(
-                        f"Ocorrência salva — câmera {camera_id}, "
-                        f"EPIs: {resultado['epi_detected']}, "
-                        f"confiança: {resultado['confidence']:.2f}"
-                    )
-                ultimo_save = agora
+                )
+                for gestor in gestores_res.scalars().all():
+                    db.add(Notification(
+                        user_id=gestor.id,
+                        tipo="err",
+                        texto=texto_notif,
+                        lida=False,
+                    ))
 
-            await asyncio.sleep(0)  # cede controle ao event loop
+                await db.commit()
+                logger.info(
+                    f"Ocorrência #{occ.id} salva — câmera {camera_id} | "
+                    f"EPIs detectados: {resultado['epi_detected']} | "
+                    f"Faltando: {resultado['epis_ausentes']} | "
+                    f"Confiança: {resultado['confidence']:.2f}"
+                )
+
+            ultimo_save = agora
+            await asyncio.sleep(0)
 
     except asyncio.CancelledError:
         logger.info(f"Detecção encerrada para câmera {camera_id}")
@@ -225,7 +300,7 @@ async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int)
         cap.release()
 
 
-# ── Inicialização automática na subida do servidor ─────────────────────────────
+# ── Inicialização automática na subida do servidor ────────────────────────────
 
 async def start_camera_streams():
     """Inicia HLS + detecção para todas as câmeras ativas ao subir o servidor."""
@@ -243,7 +318,6 @@ async def start_camera_streams():
         for cam in cameras:
             if cam.rtsp_url:
                 iniciar_hls(cam.id, cam.rtsp_url)
-                # Inicia detecção se modelo existir
                 if os.path.exists(MODEL_PATH):
                     sector_id = cam.sector_id or 1
                     task = asyncio.create_task(
@@ -267,12 +341,19 @@ async def start_camera_streams():
         logger.info("start_camera_streams cancelado.")
 
 
-# ── Stub de compatibilidade ────────────────────────────────────────────────────
+# ── Stub de compatibilidade ───────────────────────────────────────────────────
 
 async def analyze_frame(camera_id: int, frame_data: bytes) -> dict:
-    """Mantido para compatibilidade. Use analisar_frame() com numpy diretamente."""
+    """Mantido para compatibilidade com detection.py. Converte bytes → numpy e chama analisar_frame()."""
     nparr = np.frombuffer(frame_data, np.uint8)
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if frame is None:
-        return {"status": "erro", "detections": [], "epi_detected": [], "confidence": 0.0}
+        return {
+            "status": "erro",
+            "detections": [],
+            "epi_detected": [],
+            "epis_ausentes": [],
+            "pessoa_detectada": False,
+            "confidence": 0.0,
+        }
     return await analisar_frame(camera_id, frame)
