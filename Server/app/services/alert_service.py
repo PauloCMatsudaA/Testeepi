@@ -1,9 +1,3 @@
-"""
-Serviço de alertas do EPIsee.
-
-Responsável por notificar gestores quando uma não-conformidade é detectada.
-Integra com WhatsApp (via chatbot já implementado), e-mail ou push notifications.
-"""
 
 import logging
 from typing import Optional
@@ -41,39 +35,27 @@ async def send_noncompliance_alert(
         dict com resultado do envio por canal
     """
     message = (
-        f"⚠️ *EPIsee — Alerta de Não-Conformidade*\n\n"
-        f"📍 Setor: {sector_name}\n"
-        f"📷 Câmera: {camera_name}\n"
-        f"🦺 EPIs detectados: {', '.join(epi_detected) if epi_detected else 'Nenhum'}\n"
-        f"📊 Confiança: {confidence * 100:.1f}%\n"
-        f"🔗 Ocorrência #{occurrence_id}\n\n"
+        f" *EPIsee — Alerta de Não-Conformidade*\n\n"
+        f" Setor: {sector_name}\n"
+        f" Câmera: {camera_name}\n"
+        f" EPIs detectados: {', '.join(epi_detected) if epi_detected else 'Nenhum'}\n"
+        f" Confiança: {confidence * 100:.1f}%\n"
+        f" Ocorrência #{occurrence_id}\n\n"
         f"Acesse o painel para mais detalhes."
     )
 
     results = {}
 
-    # WhatsApp (integrar com o chatbot existente)
     if manager_phone:
         try:
-            # TODO: Substituir pelo endpoint real do chatbot WhatsApp EPIsee
-            # Exemplo de integração:
-            # async with httpx.AsyncClient() as client:
-            #     response = await client.post(
-            #         "http://whatsapp-service/send",
-            #         json={"phone": manager_phone, "message": message}
-            #     )
             logger.info(f"[STUB] WhatsApp alert para {manager_phone}: {message}")
             results["whatsapp"] = {"status": "stub", "phone": manager_phone}
         except Exception as e:
             logger.error(f"Falha ao enviar alerta WhatsApp: {e}")
             results["whatsapp"] = {"status": "error", "error": str(e)}
 
-    # E-mail (integrar com SMTP/SendGrid)
     if manager_email:
         try:
-            # TODO: Substituir pela implementação real de e-mail
-            # Exemplo com aiosmtplib ou SendGrid:
-            # await send_email(to=manager_email, subject="Alerta EPIsee", body=message)
             logger.info(f"[STUB] E-mail alert para {manager_email}")
             results["email"] = {"status": "stub", "email": manager_email}
         except Exception as e:
@@ -108,11 +90,11 @@ async def send_epi_request_notification(
         manager_phone: Número do gestor para WhatsApp
     """
     message = (
-        f"📦 *EPIsee — Nova Solicitação de EPI*\n\n"
-        f"👷 Trabalhador: {worker_name}\n"
-        f"🦺 EPI solicitado: {epi_type}\n"
-        f"📍 Setor: {sector_name}\n"
-        f"🔗 Solicitação #{request_id}\n\n"
+        f" *EPIsee — Nova Solicitação de EPI*\n\n"
+        f" Trabalhador: {worker_name}\n"
+        f" EPI solicitado: {epi_type}\n"
+        f" Setor: {sector_name}\n"
+        f" Solicitação #{request_id}\n\n"
         f"Acesse o painel para aprovar ou rejeitar."
     )
 

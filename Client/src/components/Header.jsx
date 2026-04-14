@@ -1,20 +1,75 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Bell, Search, Menu } from 'lucide-react';
+import { notificacoesApi } from '../api/api';
 
-const notificacoes = [
-  { id: 1, texto: 'Não conformidade na Linha A',     tempo: 'há 5 min',  tipo: 'err'  },
-  { id: 2, texto: 'Nova solicitação de EPI pendente', tempo: 'há 15 min', tipo: 'warn' },
-  { id: 3, texto: 'Câmera CAM-03 ficou offline',      tempo: 'há 1h',     tipo: 'err'  },
-];
+const POLLING_MS = 15_000; // busca a cada 15 segundos
 
 export default function Cabecalho({ titulo, aoAbrirMenu }) {
-  const { usuario }   = useAuth();
-  const navegar       = useNavigate();
-  const [notifAberta, setNotifAberta] = useState(false);
+  const { usuario }  = useAuth();
+  const navegar      = useNavigate();
 
-  const inicial     = usuario?.nome?.charAt(0) || usuario?.name?.charAt(0) || 'U';
+  const [notifAberta, setNotifAberta]   = useState(false);
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [naoLidas, setNaoLidas]         = useState(0);
+  const intervalRef = useRef(null);
+
+  // ── Busca notificações reais da API ───────────────────────────────────────
+  const buscarNotificacoes = useCallback(async () => {
+    try {
+      const res  = await notificacoesApi.listar(); // GET /api/notifications/
+      const lista = res.data || [];
+      setNotificacoes(lista);
+      setNaoLidas(lista.filter(n => !n.lida).length);
+    } catch (err) {
+      console.warn('[Notificações] Erro ao buscar:', err?.response?.status);
+    }
+  }, []);
+
+  // Polling automático enquanto o usuário está logado
+  useEffect(() => {
+    if (!usuario) return;
+
+    buscarNotificacoes(); // busca imediata ao montar
+
+    intervalRef.current = setInterval(buscarNotificacoes, POLLING_MS);
+    return () => clearInterval(intervalRef.current);
+  }, [usuario, buscarNotificacoes]);
+
+  // ── Abre painel e marca todas como lidas ──────────────────────────────────
+  const abrirPainel = async () => {
+    const abrindo = !notifAberta;
+    setNotifAberta(abrindo);
+
+    if (abrindo && naoLidas > 0) {
+      try {
+        await notificacoesApi.marcarTodasLidas(); // PATCH /api/notifications/read-all
+        setNaoLidas(0);
+        setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+      } catch {
+        // silencia
+      }
+    }
+  };
+
+  // ── Tempo relativo ────────────────────────────────────────────────────────
+  const tempoRelativo = (criado_em) => {
+    const diff = Math.floor((Date.now() - new Date(criado_em).getTime()) / 1000);
+    if (diff < 60)    return `há ${diff}s`;
+    if (diff < 3600)  return `há ${Math.floor(diff / 60)}min`;
+    if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`;
+    return `há ${Math.floor(diff / 86400)}d`;
+  };
+
+  // ── Cor do ponto por tipo ─────────────────────────────────────────────────
+  const corTipo = {
+    err:  '#ef4444',
+    warn: '#f59e0b',
+    info: '#3b82f6',
+  };
+
+  const inicial      = usuario?.nome?.charAt(0) || usuario?.name?.charAt(0) || 'U';
   const primeiroNome = (usuario?.nome || usuario?.name || '').split(' ')[0];
 
   return (
@@ -32,41 +87,81 @@ export default function Cabecalho({ titulo, aoAbrirMenu }) {
           <input type="text" placeholder="Buscar..." />
         </div>
 
+        {/* ── Sino de notificações ── */}
         <div className="notif-wrapper">
           <button
-            onClick={() => setNotifAberta(v => !v)}
+            onClick={abrirPainel}
             className="btn-icon"
             aria-label="Notificações"
           >
             <Bell size={20} />
-            {notificacoes.length > 0 && (
-              <span className="notif-badge">{notificacoes.length}</span>
+            {naoLidas > 0 && (
+              <span className="notif-badge">
+                {naoLidas > 99 ? '99+' : naoLidas}
+              </span>
             )}
           </button>
 
           {notifAberta && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setNotifAberta(false)} />
+              {/* Overlay para fechar ao clicar fora */}
+              <div
+                style={{ position: 'fixed', inset: 0, zIndex: 10 }}
+                onClick={() => setNotifAberta(false)}
+              />
+
               <div className="notif-dropdown card fade-in" style={{ padding: '0.5rem' }}>
                 <p className="notif-heading">Notificações</p>
-                <ul>
-                  {notificacoes.map(n => (
-                    <li key={n.id} className="notif-item">
-                      <span
-                        className="notif-item-dot"
-                        style={{ background: `var(--${n.tipo})` }}
-                      />
-                      <div>
-                        <p className="notif-item-text">{n.texto}</p>
-                        <p className="notif-item-time">{n.tempo}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+
+                {notificacoes.length === 0 ? (
+                  <p style={{
+                    textAlign: 'center',
+                    padding: '1.5rem 1rem',
+                    color: 'var(--text-faint)',
+                    fontSize: '0.85rem',
+                  }}>
+                    Nenhuma notificação
+                  </p>
+                ) : (
+                  <ul>
+                    {notificacoes.slice(0, 10).map(n => (
+                      <li
+                        key={n.id}
+                        className="notif-item"
+                        style={{ opacity: n.lida ? 0.5 : 1 }}
+                      >
+                        <span
+                          className="notif-item-dot"
+                          style={{ background: corTipo[n.tipo] || '#6b7280' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <p className="notif-item-text">{n.texto}</p>
+                          <p className="notif-item-time">
+                            {tempoRelativo(n.criado_em)}
+                          </p>
+                        </div>
+                        {/* Bolinha azul = não lida */}
+                        {!n.lida && (
+                          <span style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: '#3b82f6',
+                            flexShrink: 0,
+                          }} />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
                 <div className="notif-footer">
                   <button
                     className="notif-footer-btn"
-                    onClick={() => setNotifAberta(false)}
+                    onClick={() => {
+                      setNotifAberta(false);
+                      navegar('/notificacoes');
+                    }}
                   >
                     Ver todas
                   </button>
@@ -76,6 +171,7 @@ export default function Cabecalho({ titulo, aoAbrirMenu }) {
           )}
         </div>
 
+        {/* ── Avatar / Perfil ── */}
         <button
           className="header-avatar-btn"
           onClick={() => navegar('/perfil')}

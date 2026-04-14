@@ -17,12 +17,13 @@ from app.models.sector import Sector
 from app.api import notifications
 from app.api import reports
 
-import app.models  # noqa: F401
+import app.models
 
 from app.api import (
     auth, users, occurrences, epi_requests,
     cameras, sectors, dashboard, detection,
 )
+from app.api.chatbot import router as chatbot_router
 from app.services.detection_service_real import start_camera_streams
 
 logging.basicConfig(level=logging.INFO)
@@ -95,11 +96,6 @@ app.add_middleware(
 )
 
 
-# ── Endpoint HLS dedicado ─────────────────────────────────────────────────────
-# IMPORTANTE: NÃO usar StaticFiles aqui!
-# StaticFiles calcula o Content-Length ANTES de ler o arquivo.
-# O ffmpeg escreve no .ts enquanto o Starlette serve → tamanho muda → CRASH.
-# Solução: ler o arquivo inteiro em memória PRIMEIRO, aí o Content-Length bate.
 @app.get("/hls/{camera_id}/{filename}")
 async def serve_hls(camera_id: str, filename: str):
     if ".." in camera_id or ".." in filename:
@@ -117,7 +113,7 @@ async def serve_hls(camera_id: str, filename: str):
     else:
         media_type = "application/octet-stream"
 
-    content = file_path.read_bytes()   # lê tudo antes de responder
+    content = file_path.read_bytes()
 
     return Response(
         content=content,
@@ -129,7 +125,6 @@ async def serve_hls(camera_id: str, filename: str):
     )
 
 
-# ── Routers ───────────────────────────────────────────────────────────────────
 API_PREFIX = "/api"
 
 app.include_router(auth.router,          prefix=API_PREFIX)
@@ -142,6 +137,7 @@ app.include_router(dashboard.router,     prefix=API_PREFIX)
 app.include_router(detection.router,     prefix=API_PREFIX)
 app.include_router(reports.router,       prefix=API_PREFIX)
 app.include_router(notifications.router, prefix=API_PREFIX)
+app.include_router(chatbot_router)
 
 
 @app.get("/health", tags=["Health"])

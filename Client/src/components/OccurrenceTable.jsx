@@ -1,7 +1,20 @@
 import BadgeStatus from './AlertBadge';
-import { format } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Eye } from 'lucide-react';
+
+// ── Utilitário de data seguro ─────────────────────────────────────────────────
+function formatarData(valor) {
+  if (!valor) return '—';
+  try {
+    // O backend retorna ISO string (ex: "2026-04-14T14:30:00")
+    const data = typeof valor === 'string' ? parseISO(valor) : new Date(valor);
+    if (!isValid(data)) return '—';
+    return format(data, 'dd/MM/yyyy HH:mm', { locale: ptBR });
+  } catch {
+    return '—';
+  }
+}
 
 function celulasCabecalho(compacto) {
   return (
@@ -21,25 +34,52 @@ function celulasCabecalho(compacto) {
 }
 
 function LinhaOcorrencia({ occ, compacto, aoVerDetalhes }) {
-  const idFormatado   = `#${String(occ.id).padStart(4, '0')}`;
-  const dataFormatada = format(new Date(occ.datetime), 'dd/MM/yyyy HH:mm', { locale: ptBR });
+  const idFormatado = `#${String(occ.id).padStart(4, '0')}`;
+
+  // ✅ Tenta os dois nomes possíveis: "timestamp" (backend real) ou "datetime" (mock)
+  const dataFormatada = formatarData(occ.timestamp ?? occ.datetime ?? occ.created_at);
+
+  // Confiança: backend retorna 0-1 (float), dashboard pode passar 0-100
+  const confiancaPct = occ.confidence != null
+    ? occ.confidence <= 1
+      ? Math.round(occ.confidence * 100)   // 0.91 → 91
+      : Math.round(occ.confidence)          // 91 → 91
+    : 0;
+
+  // EPIs: backend retorna array JSON ou string separada por vírgula
+  const listaEpis = Array.isArray(occ.epi_detected)
+    ? occ.epi_detected
+    : typeof occ.epi_detected === 'string'
+      ? occ.epi_detected.split(',').map(s => s.trim()).filter(Boolean)
+      : occ.epis ?? [];
 
   return (
     <tr className="transition-colors hover:bg-slate-50/50">
       <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">{idFormatado}</td>
-      <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">{occ.camera}</td>
+      <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">
+        {occ.camera ?? occ.camera_id ?? '—'}
+      </td>
 
       {!compacto && (
-        <td className="whitespace-nowrap px-4 py-3 text-slate-600">{occ.sector}</td>
+        <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+          {occ.sector ?? occ.sector_id ?? '—'}
+        </td>
       )}
 
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-1">
-          {occ.epis?.map((epi, i) => (
-            <span key={i} className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-              {epi}
-            </span>
-          ))}
+          {listaEpis.length > 0 ? (
+            listaEpis.map((epi, i) => (
+              <span
+                key={i}
+                className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+              >
+                {epi}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
         </div>
       </td>
 
@@ -51,9 +91,12 @@ function LinhaOcorrencia({ occ, compacto, aoVerDetalhes }) {
         <td className="whitespace-nowrap px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-brand" style={{ width: `${occ.confidence}%` }} />
+              <div
+                className="h-full rounded-full bg-brand"
+                style={{ width: `${confiancaPct}%` }}
+              />
             </div>
-            <span className="text-xs text-slate-500">{occ.confidence}%</span>
+            <span className="text-xs text-slate-500">{confiancaPct}%</span>
           </div>
         </td>
       )}

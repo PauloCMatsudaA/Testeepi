@@ -11,16 +11,13 @@ from threading import Thread
 
 logger = logging.getLogger(__name__)
 
-# ── Configurações ──────────────────────────────────────────────────────────────
-
 HLS_DIR = "hls_streams"
 os.makedirs(HLS_DIR, exist_ok=True)
 
-# Tenta encontrar o best.pt em dois lugares possíveis
 _base = os.path.dirname(__file__)
-MODEL_PATH = os.path.join(_base, "..", "..", "best.pt")          # Server/best.pt
+MODEL_PATH = os.path.join(_base, "..", "..", "best.pt")
 if not os.path.exists(MODEL_PATH):
-    MODEL_PATH = os.path.join(_base, "..", "..", "..", "best.pt") # raiz do projeto
+    MODEL_PATH = os.path.join(_base, "..", "..", "..", "best.pt")
 
 VIDEO_FALLBACK = os.path.join(_base, "..", "..", "..", "teste.mp4")
 
@@ -38,14 +35,11 @@ CLASSES_EPI = {
     "safety-suit",
 }
 
-# ⚠️ Ajuste conforme seu ambiente:
-# Use {"safety-vest"} para testar (a câmera atual não usa capacete)
-# Use {"safety-vest", "helmet"} em produção
 EPIS_OBRIGATORIOS = {"helmet"}
 
 CONFIANCA_MINIMA = 0.50
-INTERVALO_SALVAR = 30   # segundos mínimos entre ocorrências salvas por câmera
-YOLO_INTERVALO   = 0.3  # segundos entre inferências (~3 FPS de análise)
+INTERVALO_SALVAR = 600
+YOLO_INTERVALO   = 0.3
 
 processos_ffmpeg: dict[int, subprocess.Popen] = {}
 tarefas_deteccao: dict[int, asyncio.Task]     = {}
@@ -57,8 +51,6 @@ FFMPEG_BIN = (
     or r"C:\ProgramData\chocolatey\bin\ffmpeg.exe"
 )
 
-
-# ── Modelo YOLO ────────────────────────────────────────────────────────────────
 
 def get_model():
     global _model
@@ -73,8 +65,6 @@ def get_model():
             _model = None
     return _model
 
-
-# ── HLS (FFmpeg) ───────────────────────────────────────────────────────────────
 
 def iniciar_hls(camera_id: int, rtsp_url: str):
     pasta = os.path.join(HLS_DIR, str(camera_id))
@@ -119,13 +109,7 @@ def parar_hls(camera_id: int):
     logger.info(f"[CAM {camera_id}] Stream e detecção encerrados.")
 
 
-# ── FrameReader — Thread dedicada de leitura ──────────────────────────────────
-
 class FrameReader(Thread):
-    """
-    Lê frames do stream numa thread separada continuamente.
-    Queue tamanho 1: sempre descarta o frame antigo e guarda o mais recente.
-    """
 
     def __init__(self, fonte: str, camera_id: int):
         super().__init__(daemon=True)
@@ -177,8 +161,6 @@ class FrameReader(Thread):
         self.running = False
 
 
-# ── Inferência YOLO ───────────────────────────────────────────────────────────
-
 def inferir_frame(frame: np.ndarray) -> list[dict]:
     model = get_model()
     if model is None:
@@ -221,13 +203,11 @@ def avaliar_deteccoes(deteccoes: list[dict]) -> dict:
     }
 
 
-# ── Salva ocorrência + notifica gestores ──────────────────────────────────────
-
 async def salvar_ocorrencia(camera_id: int, sector_id: int, resultado: dict, frame: np.ndarray):
     from app.core.database import AsyncSessionLocal
     from app.models.occurrence import Occurrence, OccurrenceStatus
     from app.models.notification import Notification
-    from app.models.user import User, UserRole   # ← UserRole (Enum), não string!
+    from app.models.user import User, UserRole
     from sqlalchemy import select
 
     image_path = None
@@ -241,7 +221,6 @@ async def salvar_ocorrencia(camera_id: int, sector_id: int, resultado: dict, fra
 
     try:
         async with AsyncSessionLocal() as db:
-            # 1. Salva ocorrência
             occ = Occurrence(
                 camera_id    = camera_id,
                 sector_id    = sector_id,
@@ -254,7 +233,6 @@ async def salvar_ocorrencia(camera_id: int, sector_id: int, resultado: dict, fra
             db.add(occ)
             await db.flush()
 
-            # 2. Texto da notificação
             ausentes_str = ", ".join(resultado["epis_ausentes"]) or "EPI não identificado"
             texto = (
                 f"⚠️ Pessoa sem EPI — Câmera {camera_id} | "
@@ -262,10 +240,9 @@ async def salvar_ocorrencia(camera_id: int, sector_id: int, resultado: dict, fra
                 f"Confiança: {resultado['confidence'] * 100:.0f}%"
             )
 
-            # 3. Busca gestores pelo Enum correto (NÃO por string "gestor")
             res = await db.execute(
                 select(User).where(
-                    User.role == UserRole.gestor,  # ← CORREÇÃO PRINCIPAL
+                    User.role == UserRole.gestor,
                     User.is_active == True,
                 )
             )
@@ -282,7 +259,7 @@ async def salvar_ocorrencia(camera_id: int, sector_id: int, resultado: dict, fra
 
             await db.commit()
             logger.info(
-                f"[CAM {camera_id}] ✅ Ocorrência #{occ.id} salva | "
+                f"[CAM {camera_id}] Ocorrência #{occ.id} salva | "
                 f"Faltando: {resultado['epis_ausentes']} | "
                 f"Notificados: {len(gestores)} gestor(es)"
             )
@@ -290,14 +267,7 @@ async def salvar_ocorrencia(camera_id: int, sector_id: int, resultado: dict, fra
         logger.error(f"[CAM {camera_id}] Erro ao salvar ocorrência: {e}", exc_info=True)
 
 
-# ── Loop principal de detecção real-time ──────────────────────────────────────
-
 async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int):
-    """
-    FrameReader (Thread) lê o stream continuamente.
-    O loop assíncrono pega o frame mais recente da queue e roda YOLO
-    em executor (não bloqueia o event loop do FastAPI).
-    """
     logger.info(f"[CAM {camera_id}] Iniciando detecção real-time → {rtsp_url}")
 
     reader      = FrameReader(rtsp_url, camera_id)
@@ -315,7 +285,6 @@ async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int)
                 logger.warning(f"[CAM {camera_id}] Sem frames na queue — aguardando...")
                 continue
 
-            # Roda YOLO em executor para não bloquear o event loop
             deteccoes = await loop.run_in_executor(None, inferir_frame, frame)
             resultado  = avaliar_deteccoes(deteccoes)
 
@@ -343,10 +312,7 @@ async def processar_stream_camera(camera_id: int, rtsp_url: str, sector_id: int)
         reader.stop()
 
 
-# ── Inicialização automática na subida do servidor ────────────────────────────
-
 async def start_camera_streams():
-    """Inicia HLS + detecção real-time para todas as câmeras ativas."""
     await asyncio.sleep(2)
 
     logger.info(">>> [STARTUP] start_camera_streams chamado <<<")
@@ -387,8 +353,6 @@ async def start_camera_streams():
     except asyncio.CancelledError:
         logger.info("[STARTUP] start_camera_streams encerrado.")
 
-
-# ── Stubs de compatibilidade ──────────────────────────────────────────────────
 
 async def analyze_frame(camera_id: int, frame_data: bytes) -> dict:
     nparr = np.frombuffer(frame_data, np.uint8)

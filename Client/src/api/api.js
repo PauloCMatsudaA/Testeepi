@@ -122,5 +122,10 @@ export const epiRequestsApi = {
   rejeitar: (id)      => cliente.patch(`/api/epi-requests/${id}/reject`),
   criar:    (dados)   => cliente.post('/api/epi-requests', dados),
 };
+export const notificacoesApi = {
+  listar:         () => cliente.get('/api/notifications/'),
+  marcarLida:     (id) => cliente.patch(`/api/notifications/${id}/read`),
+  marcarTodasLidas: () => cliente.patch('/api/notifications/read-all'),
+};
 
 export default cliente;
