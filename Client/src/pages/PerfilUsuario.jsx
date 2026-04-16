@@ -28,7 +28,6 @@ export default function PerfilUsuario() {
   const [editSalvo,  setEditSalvo]  = useState(false);
 
   function salvar() {
-    // TODO: await configuracoesApi.atualizarPerfil({ nome: nomeEdit, telefone, setor })
     setEditSalvo(true);
     setTimeout(() => setEditSalvo(false), 2000);
   }
@@ -40,15 +39,13 @@ export default function PerfilUsuario() {
 
   return (
     <div className="pg">
-      {/* Voltar */}
+
       <button onClick={() => navegar(-1)} className="btn btn-ghost btn-sm w-fit">
         <ChevronLeft size={16} /> Voltar
       </button>
 
-      {/* Card de identidade */}
       <div className="card p-6">
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-          {/* Avatar */}
           <div className="relative shrink-0">
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-brand text-3xl font-bold text-white shadow-lg shadow-brand/20">
               {inicialNome}
@@ -58,7 +55,6 @@ export default function PerfilUsuario() {
             </button>
           </div>
 
-          {/* Info */}
           <div className="flex-1 text-center sm:text-left">
             <h2 className="text-2xl font-bold text-slate-800">{nomeCompleto}</h2>
             <div className="row gap-2 mt-1 justify-center sm:justify-start">
@@ -84,14 +80,12 @@ export default function PerfilUsuario() {
             </div>
           </div>
 
-          {/* Botão sair */}
           <button onClick={sairENavegar} className="btn btn-sm btn-danger shrink-0">
             <LogOut size={14} /> Sair
           </button>
         </div>
       </div>
 
-      {/* Estatísticas */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {estatisticasUsuario.map(({ rotulo, valor, icone: Icone }) => (
           <div key={rotulo} className="card p-4 text-center">
@@ -103,8 +97,6 @@ export default function PerfilUsuario() {
           </div>
         ))}
       </div>
-
-      {/* Editar perfil */}
       <div className="card">
         <div className="card-header">
           <div className="icon-box bg-blue-50"><User size={15} className="text-blue-500" /></div>

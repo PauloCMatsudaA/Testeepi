@@ -9,7 +9,6 @@ import TabelaOcorrencias from '../components/OccurrenceTable';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { dashboardApi, ocorrenciasApi } from '../api/api';
 
-// ─── Tooltip customizado ──────────────────────────────────────────────────────
 function TooltipGrafico({ active, payload, label }) {
   if (!active || !payload) return null;
   return (
@@ -24,7 +23,6 @@ function TooltipGrafico({ active, payload, label }) {
   );
 }
 
-// ─── Componente principal ─────────────────────────────────────────────────────
 export default function Dashboard() {
   const [stats,                 setStats]                = useState(null);
   const [ocorrenciasRecentes,   setOcorrenciasRecentes]  = useState([]);
@@ -57,14 +55,12 @@ export default function Dashboard() {
   if (erro)       return <div className="page"><div className="alert alert-err">{erro}</div></div>;
   if (!stats)     return null;
 
-  // ── Formata dados de tendência para o gráfico de linha ──
   const tendenciaConformidade = (stats.compliance_trend || []).map((item) => ({
     dia: new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     conformidade:    item.rate,
     naoConformidade: item.total > 0 ? Math.round((item.non_compliant / item.total) * 100) : 0,
-  })).slice(-7); // Últimos 7 dias
+  })).slice(-7); 
 
-  // ── Formata dados por setor para o gráfico de barras ──
   const dadosSetor = (stats.occurrences_by_sector || []).map((s) => ({
     setor:        s.sector_name,
     ok:           s.total - s.non_compliant,
@@ -104,7 +100,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Cartões de estatísticas */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cartoes.map((c) => (
           <CartaoEstatistica
@@ -118,10 +113,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 
-        {/* Linha — tendência de conformidade (últimos 7 dias) */}
         <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-semibold text-slate-700">
             Tendência de Conformidade — Últimos 7 dias
@@ -148,7 +141,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Barras — ocorrências por setor */}
         <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-semibold text-slate-700">Ocorrências por Setor</h3>
           {dadosSetor.length === 0 ? (
@@ -178,7 +170,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Últimas ocorrências */}
       <div className="rounded-xl border border-slate-100 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <h3 className="text-sm font-semibold text-slate-700">Últimas Ocorrências</h3>

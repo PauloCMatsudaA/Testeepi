@@ -1,14 +1,15 @@
+from datetime import datetime
+from typing import List
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.user import User
 from app.models.notification import Notification
-from pydantic import BaseModel
-from typing import List
-from datetime import datetime
+from app.models.user import User
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -24,11 +25,10 @@ class NotificationOut(BaseModel):
 
 
 @router.get("/", response_model=List[NotificationOut])
-async def listar_notificacoes(
+async def list_notifications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retorna as últimas 50 notificações do usuário logado."""
     result = await db.execute(
         select(Notification)
         .where(Notification.user_id == current_user.id)
@@ -39,11 +39,10 @@ async def listar_notificacoes(
 
 
 @router.get("/unread-count")
-async def contar_nao_lidas(
+async def unread_count(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retorna quantas notificações não lidas o usuário tem."""
     result = await db.execute(
         select(Notification).where(
             Notification.user_id == current_user.id,
@@ -54,12 +53,11 @@ async def contar_nao_lidas(
 
 
 @router.patch("/{notification_id}/read")
-async def marcar_lida(
+async def mark_as_read(
     notification_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Marca uma notificação como lida."""
     await db.execute(
         update(Notification)
         .where(
@@ -73,11 +71,10 @@ async def marcar_lida(
 
 
 @router.patch("/read-all")
-async def marcar_todas_lidas(
+async def mark_all_as_read(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Marca todas as notificações do usuário como lidas."""
     await db.execute(
         update(Notification)
         .where(

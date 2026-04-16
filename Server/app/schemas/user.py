@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, EmailStr
+
 from app.models.user import UserRole
 
 
@@ -22,13 +24,11 @@ class UserUpdate(BaseModel):
     role: Optional[UserRole] = None
     sector_id: Optional[int] = None
     phone: Optional[str] = None
-    is_active: Optional[bool] = None
     password: Optional[str] = None
 
 
 class UserResponse(UserBase):
     id: int
-    is_active: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

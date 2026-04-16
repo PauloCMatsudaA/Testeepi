@@ -1,40 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Users, Plus, Pencil, Trash2, ShieldCheck } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
-
-// ─── API (adicione em api.js também — instruções abaixo) ───
 import { usuariosApi, setoresApi } from '../api/api';
 
 const ROLES = [
-  { value: 'gestor',    label: 'Gestor' },
-  { value: 'operador',  label: 'Operador' },
-  { value: 'visitante', label: 'Visitante' },
+  { value: 'gestor',      label: 'Gestor' },
+  { value: 'trabalhador', label: 'Trabalhador' },
 ];
 
-const formInicial = {
-  name: '',
-  email: '',
-  password: '',
-  role: 'operador',
+const FORM_INICIAL = {
+  name:      '',
+  email:     '',
+  password:  '',
+  role:      'trabalhador',
   sector_id: '',
-  phone: '',
-  is_active: true,
+  phone:     '',
 };
 
 export default function Usuarios() {
-  const [usuarios, setUsuarios]     = useState([]);
-  const [setores, setSetores]       = useState([]);
-  const [carregando, setCarregando] = useState(true);
-  const [salvando, setSalvando]     = useState(false);
-  const [erro, setErro]             = useState('');
-  const [sucesso, setSucesso]       = useState('');
-
-  const [modalAberto, setModalAberto]       = useState(false);
+  const [usuarios, setUsuarios]               = useState([]);
+  const [setores, setSetores]                 = useState([]);
+  const [carregando, setCarregando]           = useState(true);
+  const [salvando, setSalvando]               = useState(false);
+  const [erro, setErro]                       = useState('');
+  const [sucesso, setSucesso]                 = useState('');
+  const [modalAberto, setModalAberto]         = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState(null);
-  const [form, setForm]                     = useState(formInicial);
-
-  const [busca, setBusca]               = useState('');
-  const [filtroPapel, setFiltroPapel]   = useState('');
+  const [form, setForm]                       = useState(FORM_INICIAL);
+  const [busca, setBusca]                     = useState('');
+  const [filtroPapel, setFiltroPapel]         = useState('');
 
   useEffect(() => { carregarDados(); }, []);
 
@@ -57,7 +51,7 @@ export default function Usuarios() {
 
   function abrirNovo() {
     setUsuarioEditando(null);
-    setForm(formInicial);
+    setForm(FORM_INICIAL);
     setErro('');
     setModalAberto(true);
   }
@@ -68,10 +62,9 @@ export default function Usuarios() {
       name:      u.name      || '',
       email:     u.email     || '',
       password:  '',
-      role:      u.role      || 'operador',
+      role:      u.role      || 'trabalhador',
       sector_id: u.sector_id || '',
       phone:     u.phone     || '',
-      is_active: u.is_active ?? true,
     });
     setErro('');
     setModalAberto(true);
@@ -80,13 +73,13 @@ export default function Usuarios() {
   function fecharModal() {
     setModalAberto(false);
     setUsuarioEditando(null);
-    setForm(formInicial);
+    setForm(FORM_INICIAL);
     setErro('');
   }
 
   function atualizar(e) {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   async function salvar(e) {
@@ -100,10 +93,8 @@ export default function Usuarios() {
       role:      form.role,
       sector_id: form.sector_id ? Number(form.sector_id) : null,
       phone:     form.phone || null,
-      is_active: form.is_active,
     };
 
-    // Só envia a senha se foi preenchida (edição sem trocar senha é válida)
     if (form.password) payload.password = form.password;
 
     try {
@@ -111,7 +102,11 @@ export default function Usuarios() {
         await usuariosApi.editar(usuarioEditando.id, payload);
         setSucesso('Usuário atualizado com sucesso.');
       } else {
-        if (!form.password) { setErro('A senha é obrigatória para novo usuário.'); setSalvando(false); return; }
+        if (!form.password) {
+          setErro('A senha é obrigatória para novo usuário.');
+          setSalvando(false);
+          return;
+        }
         await usuariosApi.criar({ ...payload, password: form.password });
         setSucesso('Usuário criado com sucesso.');
       }
@@ -126,11 +121,11 @@ export default function Usuarios() {
   }
 
   async function excluir(id) {
-    if (!window.confirm('Tem certeza que deseja excluir este usuário?')) return;
+    if (!window.confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) return;
     try {
       await usuariosApi.excluir(id);
       await carregarDados();
-      setSucesso('Usuário excluído.');
+      setSucesso('Usuário excluído com sucesso.');
       setTimeout(() => setSucesso(''), 3000);
     } catch (err) {
       setErro(err.response?.data?.detail || 'Não foi possível excluir o usuário.');
@@ -138,12 +133,12 @@ export default function Usuarios() {
   }
 
   const usuariosFiltrados = useMemo(() => {
-    const t = busca.toLowerCase();
+    const termo = busca.toLowerCase();
     return usuarios.filter((u) => {
       const buscaOk =
-        u.name?.toLowerCase().includes(t) ||
-        u.email?.toLowerCase().includes(t) ||
-        u.sector?.name?.toLowerCase().includes(t);
+        u.name?.toLowerCase().includes(termo) ||
+        u.email?.toLowerCase().includes(termo) ||
+        u.sector?.name?.toLowerCase().includes(termo);
       const papelOk = !filtroPapel || u.role === filtroPapel;
       return buscaOk && papelOk;
     });
@@ -152,17 +147,15 @@ export default function Usuarios() {
   function labelPapel(role) {
     return ROLES.find((r) => r.value === role)?.label || role;
   }
+
   function classePapel(role) {
-    if (role === 'gestor')   return 'badge badge-info';
-    if (role === 'operador') return 'badge badge-ok';
-    return 'badge badge-gray';
+    return role === 'gestor' ? 'badge badge-info' : 'badge badge-ok';
   }
 
   if (carregando) return <div className="page"><LoadingSpinner /></div>;
 
   return (
     <div className="page page-enter">
-      {/* Cabeçalho */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Usuários</h1>
@@ -174,11 +167,9 @@ export default function Usuarios() {
         </button>
       </div>
 
-      {/* Feedbacks */}
       {erro    && <div className="alert alert-err"><span>{erro}</span></div>}
       {sucesso && <div className="alert alert-ok"><span>{sucesso}</span></div>}
 
-      {/* Filtros */}
       <div className="card">
         <div className="card-body" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div className="field" style={{ flex: '1 1 14rem' }}>
@@ -202,7 +193,6 @@ export default function Usuarios() {
         </div>
       </div>
 
-      {/* Tabela / Lista */}
       {usuariosFiltrados.length === 0 ? (
         <div className="card">
           <div className="card-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem', gap: '0.75rem' }}>
@@ -221,7 +211,6 @@ export default function Usuarios() {
                   <th>E-mail</th>
                   <th>Papel</th>
                   <th>Setor</th>
-                  <th>Status</th>
                   <th></th>
                 </tr>
               </thead>
@@ -249,11 +238,6 @@ export default function Usuarios() {
                       </span>
                     </td>
                     <td style={{ color: 'var(--text-muted)' }}>{u.sector?.name || '—'}</td>
-                    <td>
-                      <span className={u.is_active ? 'badge badge-ok' : 'badge badge-gray'}>
-                        {u.is_active ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
                         <button className="btn btn-ghost btn-sm btn-icon" onClick={() => abrirEdicao(u)} title="Editar">
@@ -324,12 +308,6 @@ export default function Usuarios() {
                     <option value="">Selecione um setor</option>
                     {setores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                </div>
-                <div className="field" style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text)' }}>
-                    <input type="checkbox" name="is_active" checked={form.is_active} onChange={atualizar} />
-                    Usuário ativo
-                  </label>
                 </div>
               </div>
 

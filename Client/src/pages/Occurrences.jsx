@@ -27,7 +27,6 @@ export default function Occurrences() {
   const [erro,              setErro]               = useState('');
   const [totalResultados,   setTotalResultados]    = useState(0);
 
-  // Filtros
   const [statusFilter,  setStatusFilter]  = useState('');
   const [startDate,     setStartDate]     = useState('');
   const [endDate,       setEndDate]       = useState('');
@@ -37,7 +36,6 @@ export default function Occurrences() {
 
   const perPage = 10;
 
-  // ── Busca do backend ───────────────────────────────────────────────────────
   const buscar = useCallback(async () => {
     setCarregando(true);
     setErro('');
@@ -53,7 +51,6 @@ export default function Occurrences() {
       const res = await ocorrenciasApi.listar(params);
       const lista = res.data || [];
       setOcorrencias(lista);
-      // O backend não retorna total, estimamos pela quantidade retornada
       setTotalResultados(lista.length < perPage
         ? (currentPage - 1) * perPage + lista.length
         : currentPage * perPage + 1
@@ -69,7 +66,6 @@ export default function Occurrences() {
     buscar();
   }, [buscar]);
 
-  // Filtro de busca local (por câmera, id, epi)
   const filtradas = ocorrencias.filter((occ) => {
     if (!searchTerm) return true;
     const t = searchTerm.toLowerCase();
@@ -94,7 +90,6 @@ export default function Occurrences() {
     setCurrentPage(1);
   };
 
-  // Campos do modal — suporta nomes do backend real
   const campoModal = (occ) => ({
     camera:     occ.camera    ?? occ.camera_id    ?? '—',
     sector:     occ.sector    ?? occ.sector_id    ?? '—',

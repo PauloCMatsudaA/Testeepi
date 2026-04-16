@@ -1,8 +1,9 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
-from sqlalchemy.orm import relationship
-from app.core.database import Base
 import enum
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy.orm import relationship
+
+from app.core.database import Base
 
 
 class UserRole(str, enum.Enum):
@@ -20,11 +21,10 @@ class User(Base):
     role = Column(Enum(UserRole), nullable=False, default=UserRole.trabalhador)
     sector_id = Column(Integer, ForeignKey("sectors.id"), nullable=True)
     phone = Column(String(20), nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
-    # Relationships
     sector = relationship("Sector", back_populates="users")
+
     epi_requests = relationship(
         "EPIRequest",
         foreign_keys="EPIRequest.worker_id",
@@ -38,8 +38,8 @@ class User(Base):
         lazy="selectin",
     )
     notifications = relationship(
-    "Notification",
-    back_populates="user",
-    lazy="selectin",
-    cascade="all, delete-orphan",
-)
+        "Notification",
+        back_populates="user",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )

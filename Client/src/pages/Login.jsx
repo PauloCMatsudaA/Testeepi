@@ -35,7 +35,7 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Lado esquerdo — marca */}
+
       <div className="hidden flex-1 flex-col justify-between bg-dark p-12 lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand">
@@ -73,14 +73,11 @@ export default function Login() {
 
         <div className="flex items-center gap-3 text-sm text-slate-500">
           <HardHat size={16} />
-          <span>Powered by YOLOv8 + Computer Vision</span>
         </div>
       </div>
 
-      {/* Lado direito — formulário */}
       <div className="flex flex-1 flex-col items-center justify-center bg-white p-6 sm:p-12">
         <div className="w-full max-w-sm">
-          {/* Logo mobile */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand">
               <ShieldCheck size={22} className="text-white" />
@@ -92,13 +89,6 @@ export default function Login() {
 
           <h3 className="text-2xl font-bold text-slate-800">Bem-vindo de volta</h3>
           <p className="mt-1 text-sm text-slate-500">Faça login para acessar o painel de gestão.</p>
-
-          {/* Credenciais de demonstração */}
-          <div className="mt-6 rounded-xl border border-orange-200 bg-orange-50 p-3">
-            <p className="text-xs font-medium text-orange-700">🔑 Credenciais de demonstração:</p>
-            <p className="mt-1 font-mono text-xs text-orange-600">admin@episee.com / admin123</p>
-          </div>
-
           <form onSubmit={aoEnviar} className="mt-6 space-y-4">
             {erro && (
               <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -9,9 +9,8 @@ from app.models.user import User
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
 
-# ── Helper: instancia o cliente SOMENTE quando chamado ──────────────────────
 def get_ai_client():
-    from openai import AsyncOpenAI          # import local evita erro no boot
+    from openai import AsyncOpenAI          
     if not settings.OPENAI_API_KEY:
         raise HTTPException(
             status_code=503,
@@ -20,7 +19,6 @@ def get_ai_client():
     return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
-# ── Schemas ──────────────────────────────────────────────────────────────────
 
 class ReportPayload(BaseModel):
     conformidade_geral: float = 0.0
@@ -34,7 +32,6 @@ class ReportResponse(BaseModel):
     analise: str
 
 
-# ── Endpoint ─────────────────────────────────────────────────────────────────
 
 @router.post("/generate-analysis", response_model=ReportResponse)
 async def generate_analysis(

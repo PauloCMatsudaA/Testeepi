@@ -82,21 +82,19 @@ export default function Configuracoes() {
   const [passoCopiado, setPassoCopiado] = useState(null);
 
   function salvarPerfil() {
-    // TODO: await configuracoesApi.atualizarPerfil({ nome, email })
+
     setPerfilSalvo(true);
     setTimeout(() => setPerfilSalvo(false), 2000);
   }
 
   function alterarSenha() {
     if (novaSenha !== confirmarSenha || !senhaAtual) return;
-    // TODO: await configuracoesApi.alterarSenha({ senhaAtual, novaSenha })
     setSenhaAtual(''); setNovaSenha(''); setConfirmarSenha('');
     setSenhaSalva(true);
     setTimeout(() => setSenhaSalva(false), 2000);
   }
 
   function salvarNotificacoes() {
-    // TODO: await configuracoesApi.salvarNotificacoes(...)
     setNotifSalvo(true);
     setTimeout(() => setNotifSalvo(false), 2000);
   }
@@ -119,7 +117,6 @@ export default function Configuracoes() {
 
   return (
     <div className="pg">
-      {/* ── Minha Conta ── */}
       <div className="card">
         <div className="card-header">
           <div className="icon-box bg-blue-50"><User size={16} className="text-blue-500" /></div>
@@ -143,7 +140,6 @@ export default function Configuracoes() {
             </button>
           </div>
 
-          {/* Alterar senha */}
           <div className="divider pt-4 space-y-3">
             <h4 className="sec-title mb-3">Alterar Senha</h4>
             <div className="input-icon">
@@ -181,7 +177,6 @@ export default function Configuracoes() {
         </div>
       </div>
 
-      {/* ── Notificações ── */}
       <div className="card">
         <div className="card-header">
           <div className="icon-box bg-orange-50"><Bell size={16} className="text-brand" /></div>
@@ -206,7 +201,6 @@ export default function Configuracoes() {
         </div>
       </div>
 
-      {/* ── Integração YOLOv8 ── */}
       <div className="card">
         <div className="card-header">
           <div className="icon-box bg-purple-50"><Cpu size={16} className="text-purple-500" /></div>

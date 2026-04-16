@@ -1,13 +1,14 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_manager
+from app.core.deps import get_current_manager, get_current_user
 from app.core.security import get_password_hash
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate, UserResponse
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -21,7 +22,6 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_manager),
 ):
-    """List all users. Manager only."""
     query = select(User)
     if role:
         query = query.where(User.role == role)
@@ -29,8 +29,7 @@ async def list_users(
         query = query.where(User.sector_id == sector_id)
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
-    users = result.scalars().all()
-    return [UserResponse.model_validate(u) for u in users]
+    return [UserResponse.model_validate(u) for u in result.scalars().all()]
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -39,13 +38,14 @@ async def get_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get a user by ID. Users can only see themselves unless they are managers."""
     if current_user.role != "gestor" and current_user.id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado")
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
+
     return UserResponse.model_validate(user)
 
 
@@ -56,9 +56,9 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update user. Users can update themselves; managers can update anyone."""
     if current_user.role != "gestor" and current_user.id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado")
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -67,6 +67,7 @@ async def update_user(
     update_data = user_in.model_dump(exclude_unset=True)
     if "password" in update_data:
         update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+
     for field, value in update_data.items():
         setattr(user, field, value)
 
@@ -81,10 +82,10 @@ async def delete_user(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_manager),
 ):
-    """Soft-delete (deactivate) a user. Manager only."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
-    user.is_active = False
+
+    await db.delete(user)
     await db.flush()
