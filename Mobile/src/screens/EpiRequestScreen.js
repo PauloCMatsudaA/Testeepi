@@ -1,4 +1,3 @@
-// src/screens/EpiRequestScreen.js — Tela de solicitação de EPI
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
@@ -201,7 +200,7 @@ export default function EpiRequestScreen() {
             {erros.motivo && <Text style={estilos.textoErro}>{erros.motivo}</Text>}
           </View>
 
-          {/* SETOR DINÂMICO */}
+      
           <View style={estilos.campo}>
             <Text style={estilos.campoLabel}>Setor <Text style={estilos.obrigatorio}>*</Text></Text>
             <Seletor titulo="Selecione o setor" opcoes={setores} valorSelecionado={setorId}
@@ -224,13 +223,6 @@ export default function EpiRequestScreen() {
               <Text style={estilos.erroTexto}>{erro}</Text>
             </View>
           ) : null}
-        </View>
-
-        <View style={estilos.infoCard}>
-          <Ionicons name="information-circle" size={18} color="#3B82F6" />
-          <Text style={estilos.infoTexto}>
-            Após o envio, o gestor será notificado. Prazo médio: <Text style={{ fontWeight: '700' }}>2 dias úteis</Text>.
-          </Text>
         </View>
 
         <TouchableOpacity onPress={handleEnviar} activeOpacity={0.85} disabled={carregando} style={estilos.botaoWrapper}>

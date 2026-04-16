@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatbot } from '../hooks/useChatbot';
 
-// ── Constantes de design ──────────────────────────────────────────────────────
 const COR = {
   primaria:  '#F97316',
   preto:     '#0F172A',
@@ -31,7 +30,6 @@ const COR = {
   digitando: '#E2E8F0',
 };
 
-// ── Componentes ───────────────────────────────────────────────────────────────
 
 function BolhaMensagem({ mensagem }) {
   const ehBot     = mensagem.role === 'bot';

@@ -31,11 +31,6 @@ async def login(
             detail="Email ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Usuário inativo",
-        )
 
     access_token = create_access_token(data={"sub": str(user.id)})
     return Token(

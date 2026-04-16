@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -21,7 +21,8 @@ class User(Base):
     role = Column(Enum(UserRole), nullable=False, default=UserRole.trabalhador)
     sector_id = Column(Integer, ForeignKey("sectors.id"), nullable=True)
     phone = Column(String(20), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)   
+
 
     sector = relationship("Sector", back_populates="users")
 

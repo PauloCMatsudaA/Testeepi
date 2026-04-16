@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../contexts/AuthContext';
 
-// Telas
 import LoginScreen        from '../screens/LoginScreen';
 import HomeScreen         from '../screens/HomeScreen';
 import NR6Screen          from '../screens/NR6Screen';
@@ -17,7 +16,6 @@ import MyRequestsScreen   from '../screens/MyRequestsScreen';
 import ProfileScreen      from '../screens/ProfileScreen';
 import ChatScreen         from '../screens/ChatScreen';
 
-// ── Constantes de design ──────────────────────────────────────────────────────
 const COR = {
   primaria: '#F97316',
   escura:   '#0F172A',
@@ -29,16 +27,14 @@ const COR = {
 const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
 
-// ── Ícones das abas ───────────────────────────────────────────────────────────
 const ICONES_ABA = {
-  Home:               { ativo: 'home',               inativo: 'home-outline'               },
-  NR6:                { ativo: 'book',               inativo: 'book-outline'               },
-  SolicitarEPI:       { ativo: 'shield-checkmark',   inativo: 'shield-checkmark-outline'   },
-  MinhasSolicitacoes: { ativo: 'list',               inativo: 'list-outline'               },
+  Home:               { ativo: 'home',  inativo: 'home-outline' },
+  NR6:                { ativo: 'book', inativo: 'book-outline'  },
+  SolicitarEPI: { ativo: 'clipboard', inativo: 'clipboard-outline' },
+  MinhasSolicitacoes: { ativo: 'list',  inativo: 'list-outline' },
   Chat:               { ativo: 'chatbubble-ellipses',inativo: 'chatbubble-ellipses-outline'},
 };
 
-// ── Botão central destacado (Solicitar EPI) ───────────────────────────────────
 function BotaoCentral({ children, onPress }) {
   return (
     <TouchableOpacity
@@ -51,7 +47,6 @@ function BotaoCentral({ children, onPress }) {
   );
 }
 
-// ── Bottom Tab Navigator ──────────────────────────────────────────────────────
 function TabNavigator() {
   return (
     <Tab.Navigator
@@ -86,7 +81,6 @@ function TabNavigator() {
   );
 }
 
-// ── Tela de carregamento ──────────────────────────────────────────────────────
 function TelaCarregando() {
   return (
     <View style={estilos.carregando}>
@@ -97,7 +91,6 @@ function TelaCarregando() {
   );
 }
 
-// ── Navigator principal ───────────────────────────────────────────────────────
 export default function AppNavigator() {
   const { isAutenticado, loading } = useAuth();
 
@@ -107,7 +100,6 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAutenticado ? (
-          // Rotas autenticadas — tabs + chat como modal fullscreen se necessário
           <Stack.Screen name="Main" component={TabNavigator} />
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
@@ -117,7 +109,6 @@ export default function AppNavigator() {
   );
 }
 
-// ── Estilos ───────────────────────────────────────────────────────────────────
 const estilos = StyleSheet.create({
   tabBar: {
     backgroundColor:  COR.branco,

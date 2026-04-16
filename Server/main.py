@@ -54,7 +54,6 @@ async def create_default_admin():
                 role=UserRole.gestor,
                 sector_id=default_sector.id,
                 phone="+5511999999999",
-                is_active=True,
             )
             db.add(admin)
             await db.flush()

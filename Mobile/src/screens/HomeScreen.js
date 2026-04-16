@@ -1,4 +1,3 @@
-// src/screens/HomeScreen.js — Tela principal do trabalhador
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
@@ -64,7 +63,7 @@ export default function HomeScreen({ navigation }) {
   useFocusEffect(useCallback(() => { carregarSolicitacoes(); }, [carregarSolicitacoes]));
 
   const atalhos = [
-    { icone: 'shield-checkmark', cor: '#F97316', fundo: '#FFF7ED', titulo: 'Solicitar EPI',   onPress: () => navigation.navigate('SolicitarEPI') },
+    { icone: 'clipboard', cor: '#1D6FE8', fundo: '#EFF6FF', titulo: 'Solicitar EPI',   onPress: () => navigation.navigate('SolicitarEPI') },
     { icone: 'list',             cor: '#3B82F6', fundo: '#EFF6FF', titulo: 'Solicitações',    onPress: () => navigation.navigate('MinhasSolicitacoes') },
     { icone: 'book',             cor: '#22C55E', fundo: '#F0FDF4', titulo: 'Consultar NR-6',  onPress: () => navigation.navigate('NR6') },
     { icone: 'chatbubble-ellipses', cor: '#A855F7', fundo: '#FAF5FF', titulo: 'Assistente IA', onPress: () => navigation.navigate('Chat') },
@@ -98,11 +97,10 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={() => carregarSolicitacoes(true)} tintColor="#F97316" colors={['#F97316']} />
         }
       >
-        {/* Header */}
         <View style={estilos.header}>
           <View>
             <Text style={estilos.saudacao}>{saudacao},</Text>
-            <Text style={estilos.nomeUsuario}>{user?.nome || 'Trabalhador'} 👷</Text>
+            <Text style={estilos.nomeUsuario}>{user?.nome || 'Trabalhador'} </Text>
             <Text style={estilos.dataHoje}>{dataFormatada}</Text>
           </View>
           <TouchableOpacity style={estilos.avatarHeader} onPress={() => navigation.navigate('Perfil')}>
@@ -110,45 +108,28 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Banner */}
-        <LinearGradient colors={['#F97316', '#EA580C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={estilos.bannerCard}>
-          <View style={estilos.bannerCirculo1} />
-          <View style={estilos.bannerCirculo2} />
-          <View style={estilos.bannerConteudo}>
-            <Ionicons name="shield-checkmark" size={40} color="rgba(255,255,255,0.9)" />
-            <View style={estilos.bannerTextos}>
-              <Text style={estilos.bannerTitulo}>Seu setor: {user?.setor || 'Produção'}</Text>
-              <Text style={estilos.bannerSubtitulo}>Mantenha seus EPIs sempre em ordem e trabalhe com segurança!</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        {/* Atalhos */}
         <Text style={estilos.secaoTitulo}>Acesso Rápido</Text>
         <View style={estilos.atalhoGrid}>
           {atalhos.map((item, index) => (
             <TouchableOpacity key={index} style={[estilos.atalhoCard, { backgroundColor: item.fundo }]} onPress={item.onPress} activeOpacity={0.75}>
               <View style={[estilos.atalhoIconeContainer, { backgroundColor: item.cor + '22' }]}>
-                <Ionicons name={item.icone} size={28} color={item.cor} />
+                <Ionicons name={item.icone} size={32} color={item.cor} />
               </View>
               <Text style={[estilos.atalhoTitulo, { color: item.cor }]}>{item.titulo}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Dica */}
-        <Text style={estilos.secaoTitulo}>Dica de Segurança do Dia</Text>
+        <Text style={estilos.secaoTitulo}>Dica de Segurança</Text>
         <View style={estilos.dicaCard}>
           <View style={estilos.dicaIconeContainer}>
             <Ionicons name={dica.icone} size={24} color="#F97316" />
           </View>
           <View style={estilos.dicaConteudo}>
-            <Text style={estilos.dicaLabel}>💡 Sabia disso?</Text>
             <Text style={estilos.dicaTexto}>{dica.texto}</Text>
           </View>
         </View>
 
-        {/* Status EPIs — DADOS REAIS */}
         <View style={estilos.secaoTituloRow}>
           <Text style={estilos.secaoTitulo}>Status dos seus EPIs</Text>
           <TouchableOpacity onPress={() => navigation.navigate('MinhasSolicitacoes')}>
@@ -200,9 +181,9 @@ const estilos = StyleSheet.create({
   secaoTitulo: { fontSize: 17, fontWeight: '700', color: '#0F172A', marginBottom: 12 },
   secaoLink: { fontSize: 13, fontWeight: '600', color: '#F97316' },
   atalhoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-  atalhoCard: { width: '47.5%', borderRadius: 16, padding: 18, alignItems: 'center', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
-  atalhoIconeContainer: { width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  atalhoTitulo: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  atalhoCard: { width: '47.5%', borderRadius: 16, padding: 24, alignItems: 'center', gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
+  atalhoIconeContainer: { width: 68, height: 68, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  atalhoTitulo: { fontSize: 15, fontWeight: '700', textAlign: 'center' },
   dicaCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3, borderLeftWidth: 4, borderLeftColor: '#F97316' },
   dicaIconeContainer: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF7ED', justifyContent: 'center', alignItems: 'center' },
   dicaConteudo: { flex: 1 },
