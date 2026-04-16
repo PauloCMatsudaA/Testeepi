@@ -14,6 +14,7 @@ api.interceptors.request.use(
   async (config) => {
     try {
       const token = await AsyncStorage.getItem('@episee:token');
+      console.log('[API] Token recuperado:', token ? 'OK' : 'AUSENTE'); // ← adicione
       if (token) config.headers.Authorization = `Bearer ${token}`;
     } catch (e) {
       console.warn('[API] Erro ao obter token:', e);

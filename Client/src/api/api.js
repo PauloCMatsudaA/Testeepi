@@ -57,12 +57,10 @@ export const ocorrenciasApi = {
   criar:     (dados)   => cliente.post("/api/occurrences/", dados),
 };
 
-// ── Dashboard — ✅ rota correta: /api/dashboard/stats ─────────────────────────
 export const dashboardApi = {
   estatisticas: () => cliente.get("/api/dashboard/stats"),
 };
 
-// ── Relatórios ────────────────────────────────────────────────────────────────
 export const relatoriosApi = {
   gerarAnalise: (dados) => cliente.post("/api/reports/generate-analysis", dados),
 };
@@ -71,7 +69,6 @@ export const reportsApi = {
   gerarAnalise: (dados) => cliente.post("/api/reports/generate-analysis", dados),
 };
 
-// ── Solicitações EPI ──────────────────────────────────────────────────────────
 export const solicitacoesApi = {
   listar:   (filtros) => cliente.get("/api/epi-requests/", { params: filtros }),
   criar:    (dados)   => cliente.post("/api/epi-requests/", dados),
@@ -86,7 +83,6 @@ export const epiRequestsApi = {
   rejeitar: (id)      => cliente.patch(`/api/epi-requests/${id}/reject`),
 };
 
-// ── Câmeras ───────────────────────────────────────────────────────────────────
 export const camerasApi = {
   listar:          ()          => cliente.get("/api/cameras/"),
   criar:           (dados)     => cliente.post("/api/cameras/", dados),
@@ -96,7 +92,6 @@ export const camerasApi = {
   pararDeteccao:   (id)        => cliente.post(`/api/cameras/${id}/stop-detection`),
 };
 
-// ── Setores ───────────────────────────────────────────────────────────────────
 export const setoresApi = {
   listar:  ()          => cliente.get("/api/sectors/"),
   criar:   (dados)     => cliente.post("/api/sectors/", dados),
@@ -104,7 +99,6 @@ export const setoresApi = {
   excluir: (id)        => cliente.delete(`/api/sectors/${id}`),
 };
 
-// ── Notificações — ✅ barra final já estava certa ─────────────────────────────
 export const notificacoesApi = {
   listar:           ()    => cliente.get("/api/notifications/"),
   contarNaoLidas:   ()    => cliente.get("/api/notifications/unread-count"),
@@ -112,7 +106,6 @@ export const notificacoesApi = {
   marcarTodasLidas: ()    => cliente.patch("/api/notifications/read-all"),
 };
 
-// ── Configurações ─────────────────────────────────────────────────────────────
 export const configuracoesApi = {
   buscarPerfil:    (id)        => cliente.get(`/api/users/${id}`),
   atualizarPerfil: (id, dados) => cliente.patch(`/api/users/${id}`, dados),

@@ -23,7 +23,7 @@ settings = get_settings()
 COMMAND_RESET = "/reiniciar"
 COMMAND_HELP = "/ajuda"
 
-HELP_MESSAGE = """*EPIsee Chatbot — Ajuda* 🦺
+HELP_MESSAGE = """*EPIsee Chatbot — Ajuda* 
 
 Olá! Sou o assistente de segurança do trabalho do EPIsee.
 
@@ -38,7 +38,7 @@ Posso te ajudar com:
 • /ajuda — Mostra esta mensagem
 • /reiniciar — Reinicia a conversa
 
-Pode me enviar sua pergunta por *texto* ou *áudio*! 🎙️"""
+Pode me enviar sua pergunta por *texto*! """
 
 
 @router.get("/webhook")

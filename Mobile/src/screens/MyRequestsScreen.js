@@ -11,8 +11,17 @@ import { minhasSolicitacoes, getSetores } from '../api/api';
 import RequestCard from '../components/RequestCard';
 
 const traduzirStatus = (status) => {
-  const mapa = { pending: 'Pendente', approved: 'Aprovada', rejected: 'Rejeitada' };
-  return mapa[status] || status;
+  const mapa = {
+    // inglês (caso o backend mude futuramente)
+    pending:   'Pendente',
+    approved:  'Aprovada',
+    rejected:  'Rejeitada',
+    // português (o que o backend retorna agora)
+    pendente:  'Pendente',
+    aprovada:  'Aprovada',
+    rejeitada: 'Rejeitada',
+  };
+  return mapa[status?.toLowerCase()] || status;
 };
 
 function EstadoVazio() {

@@ -5,12 +5,12 @@ import { chatbotApi } from '../api/api';
 const WELCOME_MESSAGE = {
   id: '0',
   role: 'bot',
-  text: 'Olá! Sou o assistente EPIsee 🛡️\nPosso ajudar com dúvidas sobre EPIs, NR-6 e segurança do trabalho. O que você precisa saber?',
+  text: 'Olá! Sou o assistente EPIsee \nPosso ajudar com dúvidas sobre EPIs e segurança do trabalho. O que você precisa saber?',
   timestamp: new Date(),
 };
 
 const QUICK_QUESTIONS = [
-  'Quais EPIs são obrigatórios?',
+  'Quais EPIs são obrigatórios para o meu setor?',
   'Como solicitar um EPI novo?',
   'O que diz a NR-6?',
   'Prazo de vida útil do capacete',

@@ -59,12 +59,10 @@ def test_estrutura_projeto():
         assert Path(arquivo).exists(), f"Arquivo não encontrado: {arquivo}"
 
 
-# ── Testes de integração (requer .env configurado) ──────────────────────────
 
 @pytest.mark.integration
 def test_indexer_gera_indice(tmp_path, monkeypatch):
     """Testa se o indexer consegue criar o índice FAISS (requer OpenAI API)."""
-    # Este teste só roda com a flag --integration
     pytest.skip("Teste de integração — requer OPENAI_API_KEY válida")
 
 
