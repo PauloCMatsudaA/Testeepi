@@ -1,24 +1,27 @@
-from pydantic_settings import BaseSettings
-from typing import List
-from typing import List, Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite+aiosqlite:///./episee.db"
-    SECRET_KEY: str = "episee_secret_key_change_in_production_very_long_string_here"
+    DATABASE_URL: str
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
-    CORS_ORIGINS: List[str] = ["*"]
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
 
-    # ── E-mail (preencha no .env) ──────────────────────────────────────────
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = "engs-pauloalmeida@gmail.com"        # seu e-mail: ex: episee@gmail.com
-    SMTP_PASSWORD: str = ""    # senha de app do Gmail (não a senha normal)
-    EMAIL_FROM: str = "engs-pauloalmeida@gmail.com"       
-    OPENAI_API_KEY: Optional[str] = None
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    OPENAI_API_KEY: str = ""
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 settings = Settings()
